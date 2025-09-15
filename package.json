@@ -1,12 +1,11 @@
 {
-  "name": "template-express-prisma",
+  "name": "final-project-backend",
   "version": "1.0.0",
-  "description": "",
   "main": "index.js",
   "scripts": {
     "build": "tsc",
     "start": "npm run build && node dist/index.js",
-    "dev": "nodemon src/index.ts"
+    "dev": "ts-node-dev --respawn --transpile-only src/app.ts"
   },
   "keywords": [],
   "author": "",
@@ -21,7 +20,7 @@
     "@types/nodemailer": "^7.0.0",
     "nodemon": "^3.1.10",
     "ts-node": "^10.9.2",
-    "typescript": "^5.8.3"
+    "typescript": "^5.9.2"
   },
   "dependencies": {
     "@prisma/client": "^6.12.0",
