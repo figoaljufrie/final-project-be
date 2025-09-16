@@ -1,6 +1,5 @@
 import dotenv from "dotenv";
 dotenv.config();
-
 import express, { Application } from "express";
 import cors from "cors";
 import { UserRouter } from "./modules/user/routers/user-router";
@@ -39,3 +38,4 @@ export class App {
 
 const app = new App();
 app.listen();
+
