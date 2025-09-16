@@ -3,6 +3,7 @@ dotenv.config();
 
 import express, { Application } from "express";
 import cors from "cors";
+import { UserRouter } from "./modules/user/routers/user-router";
 
 export class App {
   private app: Application;
@@ -26,6 +27,7 @@ export class App {
   }
 
   public initializeRoutes() {
+    this.app.use("/api", new UserRouter().getRouter());
   }
 
   public listen() {
