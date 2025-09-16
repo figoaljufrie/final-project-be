@@ -1,43 +1,41 @@
 import dotenv from "dotenv";
 dotenv.config();
+import express, { Application } from "express";
+import cors from "cors";
+import { UserRouter } from "./modules/user/routers/user-router";
 
-import express from "express";
-import { BookingController } from "./modules/booking/booking.controller";
+export class App {
+  private app: Application;
+  private port: number;
 
-const app = express();
-const port = 8000;
+  constructor(port: number = 8000) {
+    this.app = express();
+    this.port = port;
 
-const bookingController = new BookingController();
+    //cors - setup:
+    const corsOptions = {
+      origin: "http://localhost:3000",
+      methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+      credentials: true,
+    };
+    this.app.use(cors(corsOptions));
 
-// Middleware
-app.use(express.json());
+    this.app.use(express.json());
 
-// HANYA 1 ROUTE SIMPLE
-app.get("/", (req, res) => {
-  res.json({ 
-    message: "Property Rental API is running!",
-    endpoints: {
-      health: "/",
-      bookings: "/api/bookings"
-    }
-  });
-});
+    this.initializeRoutes();
+  }
 
-// ========== BOOKING ENDPOINTS ==========
+  public initializeRoutes() {
+    this.app.use("/api", new UserRouter().getRouter());
+  }
 
-// POST /api/bookings - Create booking
-app.post("/api/bookings", bookingController.createBooking);
+  public listen() {
+    this.app.listen(this.port, () => {
+      console.log(`Server is running on http://localhost:${this.port}`);
+    });
+  }
+}
 
-// GET /api/bookings - Get user bookings  
-app.get("/api/bookings", bookingController.getUserBookings);
+const app = new App();
+app.listen();
 
-// GET /api/bookings/:bookingId - Get booking details
-app.get("/api/bookings/:bookingId", bookingController.getBookingDetails);
-
-// PUT /api/bookings/:bookingId/cancel - Cancel booking
-app.put("/api/bookings/:bookingId/cancel", bookingController.cancelBooking);
-
-// Start server
-app.listen(port, () => {
-  console.log(`Server running on http://localhost:${port}`);
-});
