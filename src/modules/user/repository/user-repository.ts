@@ -24,6 +24,17 @@ export class UserRepository {
     return user;
   }
 
+  public async verifyEmail(userId: number) {
+    return prisma.user.update({
+      where: { id: userId },
+      data: { isEmailVerified: true },
+    });
+  }
+
+  public async findByEmail(email: string): Promise<User | null> {
+    return prisma.user.findUnique({ where: { email } });
+  }
+
   public async getAll() {
     const user = await prisma.user.findMany();
     return user;
@@ -52,6 +63,7 @@ export class UserRepository {
       where: { id: userId },
       data: {
         email,
+        isEmailVerified: false,
       },
     });
     return updateEmail;
