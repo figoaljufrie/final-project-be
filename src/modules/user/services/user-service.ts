@@ -32,29 +32,33 @@ export class UserService {
     return await this.userRepository.getAll();
   }
 
-  public async getMe(userId: number) {
-    return await this.userRepository.getMe(userId);
+  public async getMe(id: number) {
+    return await this.userRepository.getMe(id);
   }
 
   public async findById(id: number) {
     return await this.userRepository.findById(id);
   }
 
-  public async findByEmail(email: string) {
-    return await this.userRepository.findByEmail(email);
+  public async updateEmail(id: number, email: string) {
+    return await this.userRepository.updateEmail(id, email);
   }
 
   public async updateUser(id: number, data: UserDTO) {
     return await this.userRepository.updateUser(id, data);
   }
 
-  public async updateAvatar(userId: number, avatarUrl: string) {
-    return await this.userRepository.updateAvatar(userId, avatarUrl);
+  public async updateAvatar(id: number, avatarUrl: string) {
+    return await this.userRepository.updateAvatar(id, avatarUrl);
   }
 
-  public async updatePassword(userId: number, password: string) {
+  public async updatePassword(id: number, password: string) {
     const hashedPassword = await bcrypt.hash(password, 10);
-    return await this.userRepository.updatePassword(userId, hashedPassword);
+    return await this.userRepository.updatePassword(id, hashedPassword);
+  }
+
+  public async softDeleteUser(id: number) {
+    return await this.userRepository.softDeleteUser(id);
   }
 
   public async hardDeleteUser(id: number) {
