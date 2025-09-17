@@ -16,8 +16,8 @@ export class UserController {
   };
   public getMe = async (req: Request, res: Response) => {
     try {
-      const userId = Number(req.params.id);
-      const result = await this.userService.getMe(userId);
+      const id = Number(req.params.id);
+      const result = await this.userService.getMe(id);
       succHandle(res, "Sucessfully get user.", result, 200);
     } catch (error) {
       errHandle(res, "Failed to get user.", 500, error);
@@ -34,19 +34,21 @@ export class UserController {
     }
   };
 
-  public findByEmail = async (req: Request, res: Response) => {
+  public updateEmail = async (req: Request, res: Response) => {
     try {
-      const { email } = req.body
-      const result = await this.userService.findByEmail(email);
-      succHandle(res, "Successfully get user Email.", result, 200);
+      const id = Number(req.params.id);
+      const { email } = req.body;
+      const result = await this.userService.updateEmail(id, email);
+      succHandle(res, "Successfully update email", result, 200);
     } catch (error) {
-      errHandle(res, "Failed to get user email", 500, error);
+      errHandle(res, "Failed to update email", 500, error);
     }
   };
 
   public updateUser = async (req: Request, res: Response) => {
     try {
-      const { id, data } = req.body;
+      const id = Number(req.params.id);
+      const { data } = req.body;
       const result = await this.userService.updateUser(id, data);
       succHandle(res, "Successfully update User", result, 200);
     } catch (error) {
@@ -56,8 +58,9 @@ export class UserController {
 
   public updateAvatar = async (req: Request, res: Response) => {
     try {
-      const { userId, avatarUrl } = req.body;
-      const result = await this.userService.updateAvatar(userId, avatarUrl);
+      const id = Number(req.params.userId);
+      const { avatarUrl } = req.body;
+      const result = await this.userService.updateAvatar(id, avatarUrl);
 
       succHandle(res, "Successfully update avatar", result, 200);
     } catch (error) {
@@ -67,11 +70,22 @@ export class UserController {
 
   public updatePassword = async (req: Request, res: Response) => {
     try {
-      const { userId, password } = req.body;
-      const result = await this.userService.updatePassword(userId, password);
+      const id = Number(req.params.id)
+      const { password } = req.body;
+      const result = await this.userService.updatePassword(id, password);
       succHandle(res, "Successfully update password", result, 200);
     } catch (error) {
       errHandle(res, "Failed to update password", 500, error);
+    }
+  };
+
+  public softDeleteUser = async (req: Request, res: Response) => {
+    try {
+      const id = Number(req.params.id);
+      const result = await this.userService.softDeleteUser(id);
+      succHandle(res, "Successfully soft-delete user", result, 200);
+    } catch (error) {
+      errHandle(res, "Failed to soft-delete user", 500, error);
     }
   };
 

@@ -6,7 +6,7 @@ export class UserRepository {
   //create logic db:
   public async create(data: UserDTO) {
     const existingUser = await prisma.user.findUnique({
-      where: { email: data.email },
+      where: { email: data.email! },
     });
 
     if (existingUser) {
@@ -14,10 +14,10 @@ export class UserRepository {
     }
     const user = await prisma.user.create({
       data: {
-        name: data.name,
-        email: data.email,
-        password: data.password,
-        role: data.role,
+        name: data.name!,
+        email: data.email!,
+        password: data.password!,
+        role: data.role!,
       },
     });
 
@@ -29,9 +29,9 @@ export class UserRepository {
     return user;
   }
 
-  public async getMe(userId: number) {
+  public async getMe(id: number) {
     const user = await prisma.user.findUnique({
-      where: { id: userId },
+      where: { id },
     });
     if (!user) throw new Error("User not found");
     const { password, ...safeUser } = user;
@@ -44,12 +44,17 @@ export class UserRepository {
     });
   }
 
-  public async findByEmail(email: string): Promise<User | null> {
-    return prisma.user.findUnique({
-      where: {
+  public async updateEmail(
+    userId: number,
+    email: string
+  ): Promise<User | null> {
+    const updateEmail = await prisma.user.update({
+      where: { id: userId },
+      data: {
         email,
       },
     });
+    return updateEmail;
   }
 
   public async updateUser(id: number, data: UserDTO) {
@@ -60,9 +65,9 @@ export class UserRepository {
     return updatedUser;
   }
 
-  public async updateAvatar(userId: number, avatarUrl: string): Promise<User> {
+  public async updateAvatar(id: number, avatarUrl: string): Promise<User> {
     return prisma.user.update({
-      where: { id: userId },
+      where: { id },
       data: {
         avatarUrl,
       },
@@ -70,14 +75,21 @@ export class UserRepository {
   }
 
   public async updatePassword(
-    userId: number,
+    id: number,
     password: string
   ): Promise<User | null> {
     return prisma.user.update({
-      where: { id: userId },
+      where: { id },
       data: {
         password,
       },
+    });
+  }
+
+  public async softDeleteUser(id: number) {
+    return prisma.user.update({
+      where: { id },
+      data: { deletedAt: new Date() },
     });
   }
 
