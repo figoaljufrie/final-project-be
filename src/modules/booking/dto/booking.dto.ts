@@ -87,3 +87,18 @@ export interface CancelBookingRequest {
   userId: number;
   cancelReason: string;
 }
+
+export interface UploadPaymentProofRequest {
+  bookingId: number;
+  userId: number;
+  paymentMethod: $Enums.PaymentMethod;
+}
+
+export interface PaymentProofResponse {
+  id: number;
+  bookingNo: string;
+  status: $Enums.BookingStatus;
+  paymentMethod: $Enums.PaymentMethod;
+  paymentProofUrl: string;
+  updatedAt: Date;
+}

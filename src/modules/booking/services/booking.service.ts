@@ -2,19 +2,23 @@ import { BookingStatus } from "../../../generated/prisma";
 import { ApiError } from "../../../shared/utils/api-error";
 import { BookingRepository } from "../repository/booking.repository";
 import { BookingUtils } from "../../../shared/utils/bookings/booking.utils";
+import { CloudinaryUtils } from "../../../shared/utils/cloudinary/cloudinary";
 import {
   CreateBookingRequest,
   BookingFilter,
   BookingListResponse,
   BookingWithDetails,
   CancelBookingRequest,
+  UploadPaymentProofRequest,
 } from "../dto/booking.dto";
 
 export class BookingService {
   private bookingRepository: BookingRepository;
+  private cloudinaryUtils: CloudinaryUtils;
 
   constructor() {
     this.bookingRepository = new BookingRepository();
+    this.cloudinaryUtils = new CloudinaryUtils();
   }
 
   // Create new booking
@@ -138,8 +142,48 @@ export class BookingService {
     return cancelledBooking;
   }
 
-  // Private business logic methods
+  // Upload payment proof
+  async uploadPaymentProof(data: UploadPaymentProofRequest, file: Express.Multer.File) {
+    const { bookingId, userId, paymentMethod } = data;
 
+    // check if booking exists and belongs to user
+    const booking = await this.bookingRepository.findUserBooking(bookingId, userId);
+
+    if (!booking) {
+      throw new ApiError('Booking not found', 404);
+    }
+
+    // Check if booking can accept payment proof
+    if (booking.status !== BookingStatus.waiting_for_payment) {
+      throw new ApiError('Payment proof can only be uploaded for bookings waiting for payment', 400);
+    }
+
+    // Check payment deadline
+    if (booking.paymentDeadline && new Date() > booking.paymentDeadline) {
+      throw new ApiError('Payment deadline has passed', 400);
+    }
+
+    // Upload to Cloudinary
+    const uploadResult = await this.cloudinaryUtils.upload(file);
+
+    // Update booking
+    const updatedBooking = await this.bookingRepository.updatePaymentProof(
+      bookingId,
+      uploadResult.secure_url,
+      paymentMethod
+    );
+
+    return {
+      id: updatedBooking.id,
+      bookingNo: updatedBooking.bookingNo,
+      status: updatedBooking.status,
+      paymentMethod: updatedBooking.paymentMethod,
+      paymentProofUrl: updatedBooking.paymentProofUrl,
+      updatedAt: updatedBooking.updatedAt,
+    };
+  }
+
+  // Private business logic methods
   private validateBookingDates(checkIn: string, checkOut: string) {
     const checkInDate = new Date(checkIn);
     const checkOutDate = new Date(checkOut);
