@@ -1,8 +1,8 @@
 // import { BookingStatus, PaymentMethod } from "../../generated/prisma";
-import { $Enums } from "@prisma/client";
+import { $Enums } from "../../../generated/prisma";
 
 export interface CreateBookingRequest {
-  userId: number; //ambil req.body dulu sementara, nanti dari auth
+  userId: number;
   roomId: number;
   checkIn: string; // YYYY-MM-DD
   checkOut: string; // YYYY-MM-DD
@@ -84,6 +84,6 @@ export interface BookingItemWithRoom {
 
 export interface CancelBookingRequest {
   bookingId: number;
-  userId: number; // Sementara dari request body
+  userId: number;
   cancelReason: string;
 }

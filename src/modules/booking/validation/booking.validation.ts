@@ -4,10 +4,6 @@ export class BookingValidation {
   
   // Validation untuk create booking
   static createBooking = [
-    body('userId')
-      .isInt({ min: 1 })
-      .withMessage('User ID must be a positive integer'),
-    
     body('roomId')
       .isInt({ min: 1 })
       .withMessage('Room ID must be a positive integer'),
@@ -60,24 +56,19 @@ export class BookingValidation {
 
   // Validation untuk cancel booking
   static cancelBooking = [
-    ...BookingValidation.bookingIdParam,
-    body('userId')
+    param('bookingId')
       .isInt({ min: 1 })
-      .withMessage('User ID must be a positive integer'),
+      .withMessage('Booking ID must be a positive integer'),
+
     body('cancelReason')
       .notEmpty()
       .withMessage('Cancel reason is required')
-      .isLength({ min: 5, max: 255 })
-      .withMessage('Cancel reason must be between 5 and 255 characters')
+      .isLength({ max: 500 })
+      .withMessage('Cancel reason cannot exceed 500 characters')
   ];
 
   // Validation untuk get bookings query
   static getBookingsQuery = [
-    query('userId')
-      .optional()
-      .isInt({ min: 1 })
-      .withMessage('User ID must be a positive integer'),
-    
     query('page')
       .optional()
       .isInt({ min: 1 })
@@ -119,9 +110,8 @@ export class BookingValidation {
 
   // Validation untuk get booking details
   static getBookingDetails = [
-    ...BookingValidation.bookingIdParam,
-    query('userId')
-      .isInt({ min: 1 })
-      .withMessage('User ID must be a positive integer')
+    param('bookingId')
+    .isInt({ min: 1 })
+    .withMessage('Booking ID must be a positive integer'),
   ];
 }
