@@ -3,6 +3,8 @@ dotenv.config();
 import express, { Application } from "express";
 import cors from "cors";
 
+import { BookingRoutes } from "./modules/booking/routers/booking.routes";
+
 export class App {
   private app: Application;
   private port: number;
@@ -25,6 +27,11 @@ export class App {
   }
 
   public initializeRoutes() {
+    this.app.get("/")
+
+    // booking routes
+    const bookingRoutes = new BookingRoutes()
+    this.app.use("/api/bookings", bookingRoutes.getRouter())
   }
 
   public listen() {

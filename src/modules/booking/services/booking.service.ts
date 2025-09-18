@@ -1,14 +1,14 @@
-import { BookingStatus } from "../../generated/prisma";
-import { ApiError } from "../../shared/utils/api-error";
-import { BookingRepository } from "./booking.repository";
-import { BookingUtils } from "../../shared/utils/bookings/booking.utils";
+import { BookingStatus } from "../../../generated/prisma";
+import { ApiError } from "../../../shared/utils/api-error";
+import { BookingRepository } from "../repository/booking.repository";
+import { BookingUtils } from "../../../shared/utils/bookings/booking.utils";
 import {
   CreateBookingRequest,
   BookingFilter,
   BookingListResponse,
   BookingWithDetails,
   CancelBookingRequest,
-} from "../../shared/types/booking.types";
+} from "../dto/booking.dto";
 
 export class BookingService {
   private bookingRepository: BookingRepository;

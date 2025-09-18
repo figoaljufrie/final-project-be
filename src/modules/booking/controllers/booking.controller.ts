@@ -1,8 +1,8 @@
 import { Request, Response } from 'express';
 import { validationResult } from 'express-validator';
-import { BookingService } from './booking.service';
-import { succHandle } from '../../shared/helpers/succ-handler';
-import { errHandle } from '../../shared/helpers/err-handler';
+import { BookingService } from '../services/booking.service';
+import { succHandle } from '../../../shared/helpers/succ-handler';
+import { errHandle } from '../../../shared/helpers/err-handler';
 
 export class BookingController {
   private bookingService: BookingService;
@@ -36,7 +36,12 @@ export class BookingController {
         return errHandle(res, 'Validation error', 400, errors.array());
       }
 
-      const filters = req.query;
+      const filters = {
+        ...req.query,
+        userId: req.query.userId ? Number(req.query.userId) : undefined,
+        page: req.query.page ? Number(req.query.page) : undefined,
+        limit: req.query.limit ? Number(req.query.limit) : undefined,
+      };
       const bookings = await this.bookingService.getUserBookings(filters as any);
       
       return succHandle(res, 'Bookings retrieved successfully', bookings);
