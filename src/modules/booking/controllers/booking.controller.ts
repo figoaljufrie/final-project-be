@@ -1,14 +1,17 @@
 import { Request, Response } from 'express';
 import { validationResult } from 'express-validator';
 import { BookingService } from '../services/booking.service';
+import { UploaderMiddleware } from '../../../shared/middleware/uploader-middleware';
 import { succHandle } from '../../../shared/helpers/succ-handler';
 import { errHandle } from '../../../shared/helpers/err-handler';
 
 export class BookingController {
   private bookingService: BookingService;
+  private uploaderMiddleware: UploaderMiddleware;
 
   constructor() {
     this.bookingService = new BookingService();
+    this.uploaderMiddleware = new UploaderMiddleware();
   }
 
   // Create new booking
@@ -101,6 +104,39 @@ export class BookingController {
       const booking = await this.bookingService.cancelBooking(cancelData);
       
       return succHandle(res, 'Booking cancelled successfully', booking);
+    } catch (error: any) {
+      return errHandle(res, error.message, error.status || 500);
+    }
+  };
+
+  // Upload payment proof
+  uploadPaymentProof = async (req: Request, res: Response) => {
+    try {
+      const errors = validationResult(req);
+      if (!errors.isEmpty()) {
+        return errHandle(res, 'Validation error', 400, errors.array());
+      }
+
+      if (!req.file) {
+        return errHandle(res, 'Payment proof image is required', 400);
+      }
+
+      const bookingId = Number(req.params.bookingId);
+      const userId = (req as any).user.id;
+      const { paymentMethod } = req.body;
+
+      const uploadData = {
+        bookingId,
+        userId,
+        paymentMethod,
+      };
+
+      const result = await this.bookingService.uploadPaymentProof(
+        uploadData, 
+        req.file
+      );
+      
+      return succHandle(res, 'Payment proof uploaded successfully', result);
     } catch (error: any) {
       return errHandle(res, error.message, error.status || 500);
     }

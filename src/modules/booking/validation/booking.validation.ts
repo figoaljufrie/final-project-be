@@ -1,4 +1,5 @@
 import { body, param, query } from 'express-validator';
+import { $Enums } from '../../../generated/prisma';
 
 export class BookingValidation {
   
@@ -113,5 +114,20 @@ export class BookingValidation {
     param('bookingId')
     .isInt({ min: 1 })
     .withMessage('Booking ID must be a positive integer'),
+  ];
+
+  static uploadPaymentProof = [
+    param('bookingId')
+      .isInt({ min: 1 })
+      .withMessage('Booking ID must be a positive integer'),
+
+    body('paymentMethod')
+      .notEmpty()
+      .withMessage('Payment method is required')
+      .isIn([
+        $Enums.PaymentMethod.manual_transfer,
+        $Enums.PaymentMethod.payment_gateway,
+      ])
+      .withMessage('Invalid payment method'),
   ];
 }

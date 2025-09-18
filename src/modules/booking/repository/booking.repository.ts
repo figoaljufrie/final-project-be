@@ -296,4 +296,31 @@ export class BookingRepository {
       return cancelledBooking;
     });
   }
+
+  // Update payment proof
+  async updatePaymentProof(
+    bookingId: number, 
+    paymentProofUrl: string, 
+    paymentMethod: any
+  ) {
+    return await prisma.booking.update({
+      where: { id: bookingId },
+      data: {
+        paymentProofUrl,
+        paymentMethod,
+        status: BookingStatus.waiting_for_confirmation,
+      },
+      include: {
+        items: {
+          include: {
+            room: {
+              include: {
+                property: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
 }
