@@ -2,6 +2,8 @@ import dotenv from "dotenv";
 dotenv.config();
 import express, { Application } from "express";
 import cors from "cors";
+import { UserRouter } from "./modules/user/routers/user-router";
+import { AuthRouter } from "./modules/auth/routers/auth-router";
 
 import { BookingRoutes } from "./modules/booking/routers/booking.routes";
 
@@ -32,6 +34,11 @@ export class App {
     // booking routes
     const bookingRoutes = new BookingRoutes()
     this.app.use("/api/bookings", bookingRoutes.getRouter())
+
+    //User & Auth:
+    this.app.use("/api", new UserRouter().getRouter());
+    this.app.use("/api", new AuthRouter().getRouter());
+
   }
 
   public listen() {
