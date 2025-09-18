@@ -1,6 +1,6 @@
-import { prisma } from "../../shared/utils/prisma";
-import { BookingStatus } from "../../generated/prisma";
-import { BookingFilter } from "../../shared/types/booking.types";
+import { prisma } from "../../../shared/utils/prisma";
+import { BookingStatus } from "../../../generated/prisma";
+import { BookingFilter } from "../dto/booking.dto";
 
 export class BookingRepository {
   // Create new booking

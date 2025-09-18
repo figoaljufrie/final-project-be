@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { BookingController } from './booking.controller';
-import { BookingValidation } from './booking.validation';
+import { BookingController } from '../controllers/booking.controller';
+import { BookingValidation } from '../validation/booking.validation';
 
 export class BookingRoutes {
   private router: Router;
