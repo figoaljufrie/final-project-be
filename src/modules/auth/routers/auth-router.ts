@@ -1,10 +1,9 @@
 // modules/auth/routes/auth-router.ts
 import { Router } from "express";
-import { AuthController } from "../controllers/auth-controller";
 import { AuthMiddleware } from "../../../shared/middleware/auth-middleware";
-import { RBACMiddleware } from "../../../shared/middleware/rbac-middleware";
 import { JWTMiddleware } from "../../../shared/middleware/jwt-middleware";
-import { $Enums } from "../../../generated/prisma";
+import { RBACMiddleware } from "../../../shared/middleware/rbac-middleware";
+import { AuthController } from "../controllers/auth-controller";
 // import { validateEmail, validatePassword } etc. if needed
 
 export class AuthRouter {

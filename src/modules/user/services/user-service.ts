@@ -1,8 +1,8 @@
 // modules/user/services/user-service.ts
-import { UserRepository } from "../repository/user-repository";
-import { UserDTO } from "../dto/user-dto";
 import bcrypt from "bcrypt";
 import { ApiError } from "../../../shared/utils/api-error";
+import { UserDTO } from "../dto/user-dto";
+import { UserRepository } from "../repository/user-repository";
 
 export class UserService {
   private userRepository: UserRepository;
@@ -58,7 +58,7 @@ export class UserService {
       throw new ApiError("Both current and new passwords are required", 400);
     }
 
-    const user = await this.userRepository.findById(userId);
+    const user = await this.userRepository.findByIdWithPassword(userId);
     if (!user) throw new ApiError("User not found", 404);
 
     const isCurrentValid = await bcrypt.compare(

@@ -37,7 +37,7 @@ export class UserRepository {
 
   public async getAll() {
     const user = await prisma.user.findMany();
-    return user;
+    return user.map(({ password, ...safeUser }) => safeUser);
   }
 
   public async getMe(id: number) {
@@ -50,23 +50,26 @@ export class UserRepository {
   }
 
   public async findById(id: number) {
+    const user = await prisma.user.findUnique({ where: { id } });
+    if (!user) return null;
+    const { password, ...safeUser } = user;
+    return safeUser;
+  }
+
+  // Returns the full user object including password
+  public async findByIdWithPassword(id: number): Promise<User | null> {
     return prisma.user.findUnique({
       where: { id },
     });
   }
 
-  public async updateEmail(
-    userId: number,
-    email: string
-  ): Promise<User | null> {
-    const updateEmail = await prisma.user.update({
+  public async updateEmail(userId: number, email: string) {
+    const updatedUser = await prisma.user.update({
       where: { id: userId },
-      data: {
-        email,
-        isEmailVerified: false,
-      },
+      data: { email, isEmailVerified: false },
     });
-    return updateEmail;
+    const { password, ...safeUser } = updatedUser;
+    return safeUser;
   }
 
   public async updateUser(id: number, data: UserDTO) {
@@ -74,16 +77,17 @@ export class UserRepository {
       where: { id },
       data,
     });
-    return updatedUser;
+    const { password, ...safeUser } = updatedUser;
+    return safeUser;
   }
 
-  public async updateAvatar(id: number, avatarUrl: string): Promise<User> {
-    return prisma.user.update({
+  public async updateAvatar(id: number, avatarUrl: string) {
+    const updatedUser = await prisma.user.update({
       where: { id },
-      data: {
-        avatarUrl,
-      },
+      data: { avatarUrl },
     });
+    const { password, ...safeUser } = updatedUser;
+    return safeUser;
   }
 
   public async updatePassword(

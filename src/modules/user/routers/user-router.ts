@@ -1,10 +1,11 @@
 // modules/user/routes/user-router.ts
 import { Router } from "express";
-import { UserController } from "../controllers/user-controller";
+import { $Enums } from "../../../generated/prisma";
 import { AuthMiddleware } from "../../../shared/middleware/auth-middleware";
 import { JWTMiddleware } from "../../../shared/middleware/jwt-middleware";
 import { RBACMiddleware } from "../../../shared/middleware/rbac-middleware";
-import { $Enums } from "../../../generated/prisma";
+import { UploaderMiddleware } from "../../../shared/middleware/uploader-middleware";
+import { UserController } from "../controllers/user-controller";
 
 export class UserRouter {
   private router = Router();
@@ -12,6 +13,7 @@ export class UserRouter {
   private authMiddleware = new AuthMiddleware();
   private jwtMiddleware = new JWTMiddleware();
   private rbacMiddleware = new RBACMiddleware();
+  private uploaderMiddleware = new UploaderMiddleware();
 
   constructor() {
     this.initializeRoutes();
@@ -55,6 +57,12 @@ export class UserRouter {
     this.router.patch(
       "/users/:id/update-avatar",
       this.authMiddleware.authenticate,
+      this.uploaderMiddleware.upload().single("avatar"),
+      this.uploaderMiddleware.fileFilter([
+        "image/png",
+        "image/jpeg",
+        "image/jpg",
+      ]),
       this.userController.updateAvatar
     );
 

@@ -1,8 +1,8 @@
 // modules/auth/controller/auth-controller.ts
 import { Request, Response } from "express";
-import { AuthService } from "../services/auth-service";
-import { succHandle } from "../../../shared/helpers/succ-handler";
 import { errHandle } from "../../../shared/helpers/err-handler";
+import { succHandle } from "../../../shared/helpers/succ-handler";
+import { AuthService } from "../services/auth-service";
 
 export class AuthController {
   private authService: AuthService;
