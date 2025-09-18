@@ -19,7 +19,11 @@ export class BookingController {
         return errHandle(res, 'Validation error', 400, errors.array());
       }
 
-      const bookingData = req.body;
+      const userId = (req as any).user.id;
+      const bookingData = {
+        ...req.body,
+        userId, // add from jwt
+      }
       const booking = await this.bookingService.createBooking(bookingData);
       
       return succHandle(res, 'Booking created successfully', booking, 201);
@@ -36,15 +40,19 @@ export class BookingController {
         return errHandle(res, 'Validation error', 400, errors.array());
       }
 
+      const userId = (req as any).user.id;
       const filters = {
-        ...req.query,
-        userId: req.query.userId ? Number(req.query.userId) : undefined,
-        page: req.query.page ? Number(req.query.page) : undefined,
-        limit: req.query.limit ? Number(req.query.limit) : undefined,
-      };
-      const bookings = await this.bookingService.getUserBookings(filters as any);
+        userId,
+        status: req.query.status as any,
+        bookingNo: req.query.bookingNo as string,
+        startDate: req.query.startDate as string,
+        endDate: req.query.endDate as string,
+        page: Number(req.query.page || 1),
+        limit: Number(req.query.limit || 10),
+      }
+      const bookings = await this.bookingService.getUserBookings(filters);
       
-      return succHandle(res, 'Bookings retrieved successfully', bookings);
+      return succHandle(res, 'User bookings retrieved successfully', bookings);
     } catch (error: any) {
       return errHandle(res, error.message, error.status || 500);
     }
@@ -58,12 +66,12 @@ export class BookingController {
         return errHandle(res, 'Validation error', 400, errors.array());
       }
 
-      const { bookingId } = req.params;
-      const { userId } = req.query;
+      const bookingId = Number(req.params.bookingId);
+      const userId = (req as any).user.id;
 
       const booking = await this.bookingService.getBookingDetails(
-        Number(bookingId), 
-        Number(userId)
+        bookingId, 
+        userId
       );
       
       return succHandle(res, 'Booking details retrieved successfully', booking);
@@ -80,14 +88,15 @@ export class BookingController {
         return errHandle(res, 'Validation error', 400, errors.array());
       }
 
-      const { bookingId } = req.params;
-      const { userId, cancelReason } = req.body;
+      const bookingId = Number(req.params.bookingId);
+      const userId = (req as any).user.id;
+      const { cancelReason } = req.body;
 
       const cancelData = {
-        bookingId: Number(bookingId),
-        userId: Number(userId),
-        cancelReason
-      };
+        bookingId,
+        userId,
+        cancelReason,
+      }
 
       const booking = await this.bookingService.cancelBooking(cancelData);
       
