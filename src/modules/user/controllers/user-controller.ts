@@ -1,11 +1,13 @@
 // modules/user/controllers/user-controller.ts
-import { UserService } from "../services/user-service";
+import { Request, Response } from "express";
 import { errHandle } from "../../../shared/helpers/err-handler";
 import { succHandle } from "../../../shared/helpers/succ-handler";
-import { Request, Response } from "express";
+import { CloudinaryUtils } from "../../../shared/utils/cloudinary/cloudinary";
+import { UserService } from "../services/user-service";
 
 export class UserController {
   private userService = new UserService();
+  private cloudinaryUtils = new CloudinaryUtils();
 
   public getAll = async (req: Request, res: Response) => {
     try {
@@ -69,15 +71,30 @@ export class UserController {
 
   public updateAvatar = async (req: Request, res: Response) => {
     try {
+      // ✅ Get authenticated user
       const authUser = (req as any).user;
-      if (!authUser || !authUser.id) throw new Error("Unauthorized");
+      if (!authUser || !authUser.id) {
+        return errHandle(res, "Unauthorized", 401, "User not authenticated");
+      }
 
-      const { avatarUrl } = req.body;
-      const result = await this.userService.updateAvatar(
+      const file = req.file as Express.Multer.File;
+      if (!file) {
+        return errHandle(
+          res,
+          "No file uploaded",
+          400,
+          "Please upload an avatar file"
+        );
+      }
+
+      const result = await this.cloudinaryUtils.upload(file);
+
+      const updatedUser = await this.userService.updateAvatar(
         authUser.id,
-        avatarUrl
+        result.secure_url
       );
-      succHandle(res, "Avatar updated successfully", result, 200);
+
+      succHandle(res, "Avatar updated successfully", updatedUser, 200);
     } catch (err) {
       errHandle(res, "Failed to update avatar", 400, (err as Error).message);
     }

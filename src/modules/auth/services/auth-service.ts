@@ -1,19 +1,20 @@
-import { verify, JwtPayload, sign, SignOptions } from "jsonwebtoken";
-import { UserRepository } from "../../user/repository/user-repository";
-import { $Enums } from "../../../generated/prisma";
-import { User } from "../../../generated/prisma";
-import { RegisterDTO, LoginDTO } from "../dto/auth-dto";
 import bcrypt from "bcrypt";
+import { JwtPayload, sign, SignOptions, verify } from "jsonwebtoken";
+import { $Enums, User } from "../../../generated/prisma";
 import { ApiError } from "../../../shared/utils/api-error";
+import { MailUtils } from "../../../shared/utils/mail/mail";
+import { UserRepository } from "../../user/repository/user-repository";
+import { LoginDTO, RegisterDTO } from "../dto/auth-dto";
 
 export class AuthService {
   private userRepository: UserRepository;
-
+  private mailUtils: MailUtils;
   constructor() {
     this.userRepository = new UserRepository();
+    this.mailUtils = new MailUtils();
   }
 
-  // REGISTER USER
+  //user regist;
   public async createUser(data: RegisterDTO): Promise<Omit<User, "password">> {
     const hashedPassword = await bcrypt.hash(data.password, 10);
     const user = await this.userRepository.create({
@@ -26,6 +27,7 @@ export class AuthService {
     return safeUser;
   }
 
+  //tenant regist;
   public async createTenant(data: RegisterDTO) {
     const hashedPassword = await bcrypt.hash(data.password, 10);
     const user = await this.userRepository.create({
@@ -38,7 +40,7 @@ export class AuthService {
     return safeUser;
   }
 
-  // LOGIN & JWT
+  // user & tenant login + jwt Session:
   public async login(data: LoginDTO) {
     const user = await this.userRepository.findByEmail(data.email);
     if (!user) throw new ApiError("User not found", 404);
@@ -56,12 +58,14 @@ export class AuthService {
     return { accessToken: token, user: safeUser };
   }
 
+  //generateToken:
   private generateToken(user: any, secret: string, expiresIn: string) {
     const payload = { id: user.id, email: user.email, role: user.role };
     const options: SignOptions = { expiresIn: expiresIn as any };
     return sign(payload, secret, options);
   }
 
+  //token Validation:
   public async validateToken(token: string) {
     const secret = process.env.JWT_SECRET;
     if (!secret) throw new ApiError("JWT Secret key not set", 401);
@@ -73,13 +77,16 @@ export class AuthService {
       throw new ApiError("Invalid or expired token.", 401);
     }
 
-    const user = await this.userRepository.findById(decoded.id as number);
+    const user = await this.userRepository.findByIdWithPassword(
+      decoded.id as number
+    );
     if (!user) throw new ApiError("User not found", 404);
 
     const { password, ...safeUser } = user;
     return safeUser;
   }
 
+  //send email verif;
   public async sendVerificationEmail(email: string) {
     const user = await this.userRepository.findByEmail(email);
     if (!user) throw new ApiError("User not found", 404);
@@ -93,9 +100,21 @@ export class AuthService {
       { expiresIn: "15m" }
     );
     const verifyLink = `http://localhost:3000/auth/verify-email/${token}`;
+
+    await this.mailUtils.sendMail(
+      email,
+      "Verify your email",
+      "email-verification",
+      {
+        verifyLink,
+        token,
+      }
+    );
+
     return { message: "Verification email sent", verifyLink };
   }
 
+  //email verif;
   public async verifyEmail(token: string) {
     const secret = process.env.JWT_SECRET;
     if (!secret) throw new ApiError("JWT Secret key not set", 401);
@@ -115,6 +134,7 @@ export class AuthService {
     return { message: "Email verified successfully" };
   }
 
+  //forgot password + send email forgot;
   public async forgotPassword(email: string) {
     const user = await this.userRepository.findByEmail(email);
     if (!user) throw new ApiError("Invalid email address", 400);
@@ -132,6 +152,13 @@ export class AuthService {
       { expiresIn: "15m" }
     );
     const resetLink = `http://localhost:3000/auth/reset-password/${token}`;
+
+    await this.mailUtils.sendMail(
+      email,
+      "Reset your password",
+      "reset-password",
+      { resetLink, token }
+    );
     return { message: "Reset email sent", resetLink };
   }
 
