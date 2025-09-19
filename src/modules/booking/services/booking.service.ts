@@ -3,6 +3,8 @@ import { ApiError } from "../../../shared/utils/api-error";
 import { BookingRepository } from "../repository/booking.repository";
 import { BookingUtils } from "../../../shared/utils/bookings/booking.utils";
 import { CloudinaryUtils } from "../../../shared/utils/cloudinary/cloudinary";
+import { CronService } from "../../../shared/cron/cron.service";
+
 import {
   CreateBookingRequest,
   BookingFilter,
@@ -15,10 +17,12 @@ import {
 export class BookingService {
   private bookingRepository: BookingRepository;
   private cloudinaryUtils: CloudinaryUtils;
+  private cronService: CronService;
 
   constructor() {
     this.bookingRepository = new BookingRepository();
     this.cloudinaryUtils = new CloudinaryUtils();
+    this.cronService = CronService.getInstance();
   }
 
   // Create new booking
@@ -78,6 +82,8 @@ export class BookingService {
       roomId,
       unitCount
     );
+
+    this.cronService.scheduleBookingAutoCancel(booking.id, booking.bookingNo, booking.paymentDeadline!);
 
     return booking;
   }
@@ -139,6 +145,9 @@ export class BookingService {
         dates
       );
 
+    // Cancel booking tasks (cron service)
+    this.cronService.cancelBookingTasks(data.bookingId);
+
     return cancelledBooking;
   }
 
@@ -172,6 +181,9 @@ export class BookingService {
       uploadResult.secure_url,
       paymentMethod
     );
+
+    // Cancel booking tasks (cron service)
+    this.cronService.cancelBookingTasks(bookingId);
 
     return {
       id: updatedBooking.id,
