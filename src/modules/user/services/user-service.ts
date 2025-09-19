@@ -1,14 +1,21 @@
 // modules/user/services/user-service.ts
 import bcrypt from "bcrypt";
+import { randomBytes } from "crypto";
 import { ApiError } from "../../../shared/utils/api-error";
+import { MailUtils } from "../../../shared/utils/mail/mail";
+import { AuthRepository } from "../../auth/repositories/auth-repository";
 import { UserDTO } from "../dto/user-dto";
 import { UserRepository } from "../repository/user-repository";
 
 export class UserService {
   private userRepository: UserRepository;
+  private mailUtils: MailUtils;
+  private authRepository: AuthRepository;
 
   constructor() {
     this.userRepository = new UserRepository();
+    this.mailUtils = new MailUtils();
+    this.authRepository = new AuthRepository();
   }
 
   public async getAll() {
@@ -31,10 +38,29 @@ export class UserService {
     return user;
   }
 
-  public async updateEmail(id: number, email: string) {
-    const user = await this.userRepository.findById(id);
-    if (!user) throw new ApiError("User not found", 404);
-    return await this.userRepository.updateEmail(id, email);
+  public async updateEmail(userId: number, email: string) {
+    const updatedUser = await this.userRepository.updateEmail(userId, email);
+
+    // auto-send verification email
+    const token = randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+
+    await this.authRepository.create({
+      userId: updatedUser.id,
+      token,
+      type: "email_verification",
+      expiresAt,
+    });
+
+    const verifyLink = `${process.env.APP_URL}/auth/verify-email?token=${token}`;
+    await this.mailUtils.sendMail(
+      email,
+      "Verify your updated email",
+      "email-verification",
+      { verifyLink, token }
+    );
+
+    return updatedUser;
   }
 
   public async updateUser(id: number, data: UserDTO) {

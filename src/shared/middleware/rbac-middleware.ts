@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { UserDTO } from "../../modules/user/dto/user-dto";
 import { errHandle } from "../helpers/err-handler";
 import { $Enums } from "../../generated/prisma";
+import { ApiError } from "../utils/api-error";
 
 export class RBACMiddleware {
   public checkRole(requiredRoles: $Enums.UserRole[]) {
@@ -21,4 +22,12 @@ export class RBACMiddleware {
       }
     };
   }
+
+  public requiredLogin = (req: Request, res: Response, next: NextFunction) => {
+    const authUser = (req as any).user;
+    if (!authUser) {
+      throw new ApiError("You must login first", 401);
+    }
+    next();
+  };
 }
