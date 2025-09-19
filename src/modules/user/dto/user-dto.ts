@@ -1,9 +1,10 @@
-import { $Enums } from "../../../generated/prisma"
+import { $Enums } from "../../../generated/prisma";
 
 export interface UserDTO {
-  name?: string,
-  email?: string,
-  password?: string,
-  role?: $Enums.UserRole
-  avatarUrl?: string;
+  name?: string | null;
+  email: string;
+  password?: string | null;
+  role?: $Enums.UserRole;
+  avatarUrl?: string | null;
+  isEmailVerified?: boolean;
 }
