@@ -7,6 +7,8 @@ import { AuthRouter } from "./modules/auth/routers/auth-router";
 import { BookingRoutes } from "./modules/booking/routers/booking.routes";
 import { CronService } from './shared/cron/cron.service';
 import { CronRoutes } from './shared/cron/cron.routes';
+import { OAuthRouter } from "./modules/oAuth/routers/oAuth-router";
+
 
 export class App {
   private app: Application;
@@ -31,6 +33,7 @@ export class App {
   }
 
   public initializeRoutes() {
+
     this.app.get("/", (req, res) => {
       res.json({ message: "Nginepin API is running!" });
     });
@@ -40,10 +43,16 @@ export class App {
 
     // cron routes
     this.app.use("/api/cron", new CronRoutes().getRouter());
+    this.app.get("/");
+
+    // booking routes
+    const bookingRoutes = new BookingRoutes();
+    this.app.use("/api/bookings", bookingRoutes.getRouter());
 
     //User & Auth:
     this.app.use("/api", new UserRouter().getRouter());
     this.app.use("/api", new AuthRouter().getRouter());
+
   }
 
   // cron service setup for testing purpose
@@ -60,6 +69,9 @@ export class App {
       this.cronService.stopAllTasks();
       process.exit(0);
     });
+
+    this.app.use("/api", new OAuthRouter().getRouter());
+
   }
 
   public listen() {

@@ -6,18 +6,21 @@ export class UserRepository {
   //create logic db:
   public async create(data: UserDTO) {
     const existingUser = await prisma.user.findUnique({
-      where: { email: data.email! },
+      where: { email: data.email },
     });
 
     if (existingUser) {
       throw new Error("User with this email already exists");
     }
+
     const user = await prisma.user.create({
       data: {
-        name: data.name!,
-        email: data.email!,
-        password: data.password!,
-        role: data.role!,
+        name: data.name ?? null, 
+        email: data.email,
+        password: data.password ?? null, 
+        role: data.role ?? "user",
+        avatarUrl: data.avatarUrl ?? null, 
+        isEmailVerified: data.isEmailVerified ?? false,
       },
     });
 
