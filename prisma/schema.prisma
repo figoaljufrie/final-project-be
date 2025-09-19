@@ -1,316 +1,340 @@
 generator client {
-provider = "prisma-client-js"
-output   = "../src/generated/prisma"
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
-provider = "postgresql"
-url      = env("DATABASE_URL")
-directUrl = env("DIRECT_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ============ ENUMS ============
 enum UserRole {
-user
-tenant
+  user
+  tenant
 }
 
 enum BookingStatus {
-waiting_for_payment
-waiting_for_confirmation
-confirmed
-cancelled
-expired
-completed
-rejected
+  waiting_for_payment
+  waiting_for_confirmation
+  confirmed
+  cancelled
+  expired
+  completed
+  rejected
 }
 
 enum PaymentMethod {
-manual_transfer
-payment_gateway
+  manual_transfer
+  payment_gateway
 }
 
 enum PriceChangeType {
-nominal
-percentage
+  nominal
+  percentage
 }
 
 enum VerificationTokenType {
-email_verification
-password_reset
+  email_verification
+  password_reset
 }
 
 // ============ USER MANAGEMENT ============
 model User {
-id                Int                  @id @default(autoincrement())
-name              String?
-email             String               @unique
-password          String?
-role              UserRole
-avatarUrl         String?              @map("avatar_url")
-isEmailVerified   Boolean              @default(false) @map("is_email_verified")
-createdAt         DateTime             @default(now()) @map("created_at")
-updatedAt         DateTime             @updatedAt @map("updated_at")
-deletedAt         DateTime?            @map("deleted_at")
+  id              Int       @id @default(autoincrement())
+  name            String?
+  email           String    @unique
+  password        String?
+  dateOfBirth     DateTime? @map("date_of_birth")
+  phoneNumber     String?
+  address         String?
+  city            String?
+  country         String?
+  role            UserRole
+  avatarUrl       String?   @map("avatar_url")
+  isEmailVerified Boolean   @default(false) @map("is_email_verified")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+  deletedAt       DateTime? @map("deleted_at")
 
-// Relations
-properties        Property[]           @relation("PropertyOwner")
-bookings          Booking[]            @relation("UserBookings")
-reviews           Review[]
-reviewReplies     ReviewReply[]
-verificationTokens VerificationToken[]
-peakSeasons       PeakSeason[]
+  // Relations
+  properties         Property[]          @relation("PropertyOwner")
+  bookings           Booking[]           @relation("UserBookings")
+  reviews            Review[]
+  reviewReplies      ReviewReply[]
+  verificationTokens VerificationToken[]
+  peakSeasons        PeakSeason[]
 
-@@index([email])
-@@index([role])
-@@map("users")
+  oauthAccounts OAuthAccount[]
+
+  @@index([email])
+  @@index([role])
+  @@map("users")
+}
+
+model OAuthAccount {
+  id           Int      @id @default(autoincrement())
+  userId       Int      @map("user_id")
+  provider     String // "google" | "facebook" | "twitter"
+  providerId   String   @map("provider_id") // unique id from provider
+  accessToken  String?  @map("access_token") // optional, can be refreshed
+  refreshToken String?  @map("refresh_token") // for long-lived sessions
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerId]) // prevents duplicates per provider
+  @@index([userId])
+  @@map("oauth_accounts")
 }
 
 // Unified verification token model
 model VerificationToken {
-id         Int                    @id @default(autoincrement())
-userId     Int                    @map("user_id")
-token      String                 @unique
-type       VerificationTokenType
-expiresAt  DateTime               @map("expires_at")
-used       Boolean                @default(false)
-createdAt  DateTime               @default(now()) @map("created_at")
+  id        Int                   @id @default(autoincrement())
+  userId    Int                   @map("user_id")
+  token     String                @unique
+  type      VerificationTokenType
+  expiresAt DateTime              @map("expires_at")
+  used      Boolean               @default(false)
+  createdAt DateTime              @default(now()) @map("created_at")
 
-user       User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-@@index([token])
-@@index([userId, type])
-@@map("verification_tokens")
+  @@index([token])
+  @@index([userId, type])
+  @@map("verification_tokens")
 }
 
 // ============ PROPERTY MANAGEMENT ============
 model Category {
-id          Int       @id @default(autoincrement())
-name        String
-slug        String    @unique
-description String?
-createdAt   DateTime  @default(now()) @map("created_at")
-updatedAt   DateTime  @updatedAt @map("updated_at")
-deletedAt   DateTime? @map("deleted_at")
+  id          Int       @id @default(autoincrement())
+  name        String
+  slug        String    @unique
+  description String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
 
-properties  Property[]
+  properties Property[]
 
-@@index([slug])
-@@map("categories")
+  @@index([slug])
+  @@map("categories")
 }
 
 model Property {
-id          Int            @id @default(autoincrement())
-tenantId    Int            @map("tenant_id")
-categoryId  Int?           @map("category_id")
-name        String
-slug        String         @unique
-description String?
-address     String?
-city        String?
-province    String?
-latitude    Float?
-longitude   Float?
-published   Boolean        @default(false)
-// checkInTime String?        @map("check_in_time") // e.g., "14:00"
-// checkOutTime String?       @map("check_out_time") // e.g., "12:00"
-// rules       String?        // Property rules for email notifications
-createdAt   DateTime       @default(now()) @map("created_at")
-updatedAt   DateTime       @updatedAt @map("updated_at")
-deletedAt   DateTime?      @map("deleted_at")
+  id          Int       @id @default(autoincrement())
+  tenantId    Int       @map("tenant_id")
+  categoryId  Int?      @map("category_id")
+  name        String
+  slug        String    @unique
+  description String?
+  address     String?
+  city        String?
+  province    String?
+  latitude    Float?
+  longitude   Float?
+  published   Boolean   @default(false)
+  // checkInTime String?        @map("check_in_time") // e.g., "14:00"
+  // checkOutTime String?       @map("check_out_time") // e.g., "12:00"
+  // rules       String?        // Property rules for email notifications
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
 
-// Relations
-tenant      User           @relation("PropertyOwner", fields: [tenantId], references: [id])
-category    Category?      @relation(fields: [categoryId], references: [id])
-images      PropertyImage[]
-rooms       Room[]
-reviews     Review[]
+  // Relations
+  tenant   User            @relation("PropertyOwner", fields: [tenantId], references: [id])
+  category Category?       @relation(fields: [categoryId], references: [id])
+  images   PropertyImage[]
+  rooms    Room[]
+  reviews  Review[]
 
-@@index([slug])
-@@index([tenantId])
-@@index([city, province])
-@@index([published, deletedAt])
-@@map("properties")
+  @@index([slug])
+  @@index([tenantId])
+  @@index([city, province])
+  @@index([published, deletedAt])
+  @@map("properties")
 }
 
 model PropertyImage {
-id         Int      @id @default(autoincrement())
-propertyId Int      @map("property_id")
-url        String
-altText    String?  @map("alt_text")
-isPrimary  Boolean  @default(false) @map("is_primary")
-order      Int      @default(0)
-createdAt  DateTime @default(now()) @map("created_at")
+  id         Int      @id @default(autoincrement())
+  propertyId Int      @map("property_id")
+  url        String
+  altText    String?  @map("alt_text")
+  isPrimary  Boolean  @default(false) @map("is_primary")
+  order      Int      @default(0)
+  createdAt  DateTime @default(now()) @map("created_at")
 
-property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
 
-@@index([propertyId, isPrimary])
-@@map("property_images")
+  @@index([propertyId, isPrimary])
+  @@map("property_images")
 }
 
 // ============ ROOM MANAGEMENT ============
 model Room {
-id          Int       @id @default(autoincrement())
-propertyId  Int       @map("property_id")
-name        String
-capacity    Int
-basePrice   Int       @map("base_price")
-description String?
-totalUnits  Int       @default(1) @map("total_units")
-createdAt   DateTime  @default(now()) @map("created_at")
-updatedAt   DateTime  @updatedAt @map("updated_at")
-deletedAt   DateTime? @map("deleted_at")
+  id          Int       @id @default(autoincrement())
+  propertyId  Int       @map("property_id")
+  name        String
+  capacity    Int
+  basePrice   Int       @map("base_price")
+  description String?
+  totalUnits  Int       @default(1) @map("total_units")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
 
-// Relations
-property    Property  @relation(fields: [propertyId], references: [id])
-images      RoomImage[]
-availability RoomAvailability[]
-bookingItems BookingItem[]
+  // Relations
+  property     Property           @relation(fields: [propertyId], references: [id])
+  images       RoomImage[]
+  availability RoomAvailability[]
+  bookingItems BookingItem[]
 
-@@index([propertyId])
-@@index([basePrice])
-@@map("rooms")
+  @@index([propertyId])
+  @@index([basePrice])
+  @@map("rooms")
 }
 
 model RoomImage {
-id        Int      @id @default(autoincrement())
-roomId    Int      @map("room_id")
-url       String
-altText   String?  @map("alt_text")
-isPrimary Boolean  @default(false) @map("is_primary")
-order     Int      @default(0)
-createdAt DateTime @default(now()) @map("created_at")
+  id        Int      @id @default(autoincrement())
+  roomId    Int      @map("room_id")
+  url       String
+  altText   String?  @map("alt_text")
+  isPrimary Boolean  @default(false) @map("is_primary")
+  order     Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
 
-room      Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
 
-@@index([roomId, isPrimary])
-@@map("room_images")
+  @@index([roomId, isPrimary])
+  @@map("room_images")
 }
 
 // Simplified availability and pricing model
 model RoomAvailability {
-id            Int              @id @default(autoincrement())
-roomId        Int              @map("room_id")
-date          DateTime         @db.Date
-isAvailable   Boolean          @default(true) @map("is_available")
-customPrice   Int?             @map("custom_price") // Null means use base price
-priceModifier Float?           @map("price_modifier") // For percentage changes
-reason        String?          // For blackout reasons or price change reasons
-bookedUnits   Int              @default(0) @map("booked_units")
-createdAt     DateTime         @default(now()) @map("created_at")
-updatedAt     DateTime         @updatedAt @map("updated_at")
+  id            Int      @id @default(autoincrement())
+  roomId        Int      @map("room_id")
+  date          DateTime @db.Date
+  isAvailable   Boolean  @default(true) @map("is_available")
+  customPrice   Int?     @map("custom_price") // Null means use base price
+  priceModifier Float?   @map("price_modifier") // For percentage changes
+  reason        String? // For blackout reasons or price change reasons
+  bookedUnits   Int      @default(0) @map("booked_units")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
 
-room          Room             @relation(fields: [roomId], references: [id], onDelete: Cascade)
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
 
-@@unique([roomId, date])
-@@index([date])
-@@index([roomId, date, isAvailable])
-@@map("room_availability")
+  @@unique([roomId, date])
+  @@index([date])
+  @@index([roomId, date, isAvailable])
+  @@map("room_availability")
 }
 
 // ============ PEAK SEASON MANAGEMENT ============
 model PeakSeason {
-id            Int              @id @default(autoincrement())
-tenantId      Int              @map("tenant_id")
-name          String           // e.g., "Christmas Holiday", "Long Weekend"
-startDate     DateTime         @map("start_date") @db.Date
-endDate       DateTime         @map("end_date") @db.Date
-changeType    PriceChangeType  @map("change_type")
-changeValue   Float            @map("change_value")
-applyToAllProperties Boolean     @default(false) @map("apply_to_all_properties")
-propertyIds   Int[]            @map("property_ids") // Array of property IDs to apply to
-createdAt     DateTime         @default(now()) @map("created_at")
-updatedAt     DateTime         @updatedAt @map("updated_at")
+  id                   Int             @id @default(autoincrement())
+  tenantId             Int             @map("tenant_id")
+  name                 String // e.g., "Christmas Holiday", "Long Weekend"
+  startDate            DateTime        @map("start_date") @db.Date
+  endDate              DateTime        @map("end_date") @db.Date
+  changeType           PriceChangeType @map("change_type")
+  changeValue          Float           @map("change_value")
+  applyToAllProperties Boolean         @default(false) @map("apply_to_all_properties")
+  propertyIds          Int[]           @map("property_ids") // Array of property IDs to apply to
+  createdAt            DateTime        @default(now()) @map("created_at")
+  updatedAt            DateTime        @updatedAt @map("updated_at")
 
-tenant        User             @relation(fields: [tenantId], references: [id])
+  tenant User @relation(fields: [tenantId], references: [id])
 
-@@index([tenantId])
-@@index([startDate, endDate])
-@@map("peak_seasons")
+  @@index([tenantId])
+  @@index([startDate, endDate])
+  @@map("peak_seasons")
 }
 
 // ============ BOOKING MANAGEMENT ============
 model Booking {
-id              Int           @id @default(autoincrement())
-bookingNo       String        @unique @map("booking_no")
-userId          Int           @map("user_id")
-status          BookingStatus @default(waiting_for_payment)
-totalAmount     Int           @map("total_amount")
-paymentMethod   PaymentMethod? @map("payment_method")
-paymentProofUrl String?       @map("payment_proof_url")
-paymentDeadline DateTime?     @map("payment_deadline")
-checkIn         DateTime      @map("check_in") @db.Date
-checkOut        DateTime      @map("check_out") @db.Date
-totalGuests     Int           @map("total_guests")
-notes           String?
-confirmedAt     DateTime?     @map("confirmed_at")
-completedAt     DateTime?     @map("completed_at")
-cancelledAt     DateTime?     @map("cancelled_at")
-cancelReason    String?       @map("cancel_reason")
-createdAt       DateTime      @default(now()) @map("created_at")
-updatedAt       DateTime      @updatedAt @map("updated_at")
+  id              Int            @id @default(autoincrement())
+  bookingNo       String         @unique @map("booking_no")
+  userId          Int            @map("user_id")
+  status          BookingStatus  @default(waiting_for_payment)
+  totalAmount     Int            @map("total_amount")
+  paymentMethod   PaymentMethod? @map("payment_method")
+  paymentProofUrl String?        @map("payment_proof_url")
+  paymentDeadline DateTime?      @map("payment_deadline")
+  checkIn         DateTime       @map("check_in") @db.Date
+  checkOut        DateTime       @map("check_out") @db.Date
+  totalGuests     Int            @map("total_guests")
+  notes           String?
+  confirmedAt     DateTime?      @map("confirmed_at")
+  completedAt     DateTime?      @map("completed_at")
+  cancelledAt     DateTime?      @map("cancelled_at")
+  cancelReason    String?        @map("cancel_reason")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
 
-// Relations
-user            User          @relation("UserBookings", fields: [userId], references: [id])
-items           BookingItem[]
-reviews         Review[]
+  // Relations
+  user    User          @relation("UserBookings", fields: [userId], references: [id])
+  items   BookingItem[]
+  reviews Review[]
 
-@@index([bookingNo])
-@@index([userId])
-@@index([status])
-@@index([checkIn, checkOut])
-@@map("bookings")
+  @@index([bookingNo])
+  @@index([userId])
+  @@index([status])
+  @@index([checkIn, checkOut])
+  @@map("bookings")
 }
 
 model BookingItem {
-id         Int      @id @default(autoincrement())
-bookingId  Int      @map("booking_id")
-roomId     Int      @map("room_id")
-unitCount  Int      @map("unit_count")
-unitPrice  Int      @map("unit_price")
-nights     Int
-subTotal   Int      @map("sub_total")
-createdAt  DateTime @default(now()) @map("created_at")
+  id        Int      @id @default(autoincrement())
+  bookingId Int      @map("booking_id")
+  roomId    Int      @map("room_id")
+  unitCount Int      @map("unit_count")
+  unitPrice Int      @map("unit_price")
+  nights    Int
+  subTotal  Int      @map("sub_total")
+  createdAt DateTime @default(now()) @map("created_at")
 
-booking    Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-room       Room     @relation(fields: [roomId], references: [id])
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  room    Room    @relation(fields: [roomId], references: [id])
 
-@@index([bookingId])
-@@map("booking_items")
+  @@index([bookingId])
+  @@map("booking_items")
 }
 
 // ============ REVIEW MANAGEMENT ============
 model Review {
-id         Int          @id @default(autoincrement())
-userId     Int          @map("user_id")
-propertyId Int          @map("property_id")
-bookingId  Int          @unique @map("booking_id") // One review per booking
-rating     Int
-comment    String?
-createdAt  DateTime     @default(now()) @map("created_at")
-updatedAt  DateTime     @updatedAt @map("updated_at")
+  id         Int      @id @default(autoincrement())
+  userId     Int      @map("user_id")
+  propertyId Int      @map("property_id")
+  bookingId  Int      @unique @map("booking_id") // One review per booking
+  rating     Int
+  comment    String?
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
 
-// Relations
-user       User         @relation(fields: [userId], references: [id])
-property   Property     @relation(fields: [propertyId], references: [id])
-booking    Booking      @relation(fields: [bookingId], references: [id])
-reply      ReviewReply?
+  // Relations
+  user     User         @relation(fields: [userId], references: [id])
+  property Property     @relation(fields: [propertyId], references: [id])
+  booking  Booking      @relation(fields: [bookingId], references: [id])
+  reply    ReviewReply?
 
-@@index([propertyId])
-@@index([userId])
-@@map("reviews")
+  @@index([propertyId])
+  @@index([userId])
+  @@map("reviews")
 }
 
 model ReviewReply {
-id        Int      @id @default(autoincrement())
-reviewId  Int      @unique @map("review_id") // One reply per review
-tenantId  Int      @map("tenant_id")
-content   String
-createdAt DateTime @default(now()) @map("created_at")
-updatedAt DateTime @updatedAt @map("updated_at")
+  id        Int      @id @default(autoincrement())
+  reviewId  Int      @unique @map("review_id") // One reply per review
+  tenantId  Int      @map("tenant_id")
+  content   String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
-review    Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
-tenant    User     @relation(fields: [tenantId], references: [id])
+  review Review @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  tenant User   @relation(fields: [tenantId], references: [id])
 
-@@map("review_replies")
+  @@map("review_replies")
 }
