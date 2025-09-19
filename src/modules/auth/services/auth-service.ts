@@ -1,17 +1,21 @@
 import bcrypt from "bcrypt";
+import { randomBytes } from "crypto";
 import { JwtPayload, sign, SignOptions, verify } from "jsonwebtoken";
 import { $Enums, User } from "../../../generated/prisma";
 import { ApiError } from "../../../shared/utils/api-error";
 import { MailUtils } from "../../../shared/utils/mail/mail";
 import { UserRepository } from "../../user/repository/user-repository";
 import { LoginDTO, RegisterDTO } from "../dto/auth-dto";
+import { AuthRepository } from "../repositories/auth-repository";
 
 export class AuthService {
   private userRepository: UserRepository;
   private mailUtils: MailUtils;
+  private authRepository: AuthRepository;
   constructor() {
     this.userRepository = new UserRepository();
     this.mailUtils = new MailUtils();
+    this.authRepository = new AuthRepository();
   }
 
   //user regist;
@@ -160,6 +164,32 @@ export class AuthService {
       { resetLink, token }
     );
     return { message: "Reset email sent", resetLink };
+  }
+
+  public async requestPasswordReset(email: string) {
+    const user = await this.userRepository.findByEmail(email);
+    if (!user) throw new ApiError("User not found", 404);
+
+    const token = randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    await this.authRepository.create({
+      userId: user.id,
+      token,
+      type: "password_reset",
+      expiresAt,
+    });
+
+    const resetLink = `${process.env.APP_URL}/auth/reset-password?token=${token}`;
+
+    await this.mailUtils.sendMail(
+      email,
+      "Reset your password",
+      "reset-password",
+      { resetLink, token }
+    );
+
+    return { message: "Password reset link sent" };
   }
 
   public async resetPassword(userId: number, newPassword: string) {

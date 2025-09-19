@@ -1,4 +1,3 @@
-import { rejects } from "assert";
 import { v2 as cloudinary, UploadApiResponse } from "cloudinary";
 import { Readable } from "nodemailer/lib/xoauth2";
 
