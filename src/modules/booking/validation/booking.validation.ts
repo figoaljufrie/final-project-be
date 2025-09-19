@@ -2,7 +2,6 @@ import { body, param, query } from 'express-validator';
 import { $Enums } from '../../../generated/prisma';
 
 export class BookingValidation {
-  
   // Validation untuk create booking
   static createBooking = [
     body('roomId')

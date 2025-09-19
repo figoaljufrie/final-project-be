@@ -4,12 +4,14 @@ import express, { Application } from "express";
 import cors from "cors";
 import { UserRouter } from "./modules/user/routers/user-router";
 import { AuthRouter } from "./modules/auth/routers/auth-router";
-
 import { BookingRoutes } from "./modules/booking/routers/booking.routes";
+import { CronService } from './shared/cron/cron.service';
+import { CronRoutes } from './shared/cron/cron.routes';
 
 export class App {
   private app: Application;
   private port: number;
+  private cronService = CronService.getInstance();
 
   constructor(port: number = 8000) {
     this.app = express();
@@ -22,23 +24,42 @@ export class App {
       credentials: true,
     };
     this.app.use(cors(corsOptions));
-
     this.app.use(express.json());
 
     this.initializeRoutes();
+    this.setupGracefulShutdown();
   }
 
   public initializeRoutes() {
-    this.app.get("/")
+    this.app.get("/", (req, res) => {
+      res.json({ message: "Nginepin API is running!" });
+    });
 
     // booking routes
-    const bookingRoutes = new BookingRoutes()
-    this.app.use("/api/bookings", bookingRoutes.getRouter())
+    this.app.use("/api/bookings", new BookingRoutes().getRouter());
+
+    // cron routes
+    this.app.use("/api/cron", new CronRoutes().getRouter());
 
     //User & Auth:
     this.app.use("/api", new UserRouter().getRouter());
     this.app.use("/api", new AuthRouter().getRouter());
+  }
 
+  // cron service setup for testing purpose
+  private setupGracefulShutdown() {
+    // Graceful shutdown
+    process.on("SIGINT", () => {
+      console.log('Shutting down server...');
+      this.cronService.stopAllTasks();
+      process.exit(0);
+    });
+
+    process.on("SIGTERM", () => {
+      console.log('Shutting down server...');
+      this.cronService.stopAllTasks();
+      process.exit(0);
+    });
   }
 
   public listen() {
