@@ -5,8 +5,11 @@ import { errHandle } from "../helpers/err-handler";
 export class AuthMiddleware {
   authService = new AuthService();
 
-
-  public authenticate = async (req: Request, res: Response, next: NextFunction) => {
+  public authenticate = async (
+    req: Request,
+    res: Response,
+    next: NextFunction
+  ) => {
     try {
       const authHeader = req.headers.authorization;
 
@@ -33,5 +36,5 @@ export class AuthMiddleware {
     } catch (error) {
       return errHandle(res, "Invalid token: " + (error as Error).message, 401);
     }
-  }
+  };
 }

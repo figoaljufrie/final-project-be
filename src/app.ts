@@ -6,6 +6,7 @@ import { UserRouter } from "./modules/user/routers/user-router";
 import { AuthRouter } from "./modules/auth/routers/auth-router";
 
 import { BookingRoutes } from "./modules/booking/routers/booking.routes";
+import { OAuthRouter } from "./modules/oAuth/routers/oAuth-router";
 
 export class App {
   private app: Application;
@@ -29,16 +30,16 @@ export class App {
   }
 
   public initializeRoutes() {
-    this.app.get("/")
+    this.app.get("/");
 
     // booking routes
-    const bookingRoutes = new BookingRoutes()
-    this.app.use("/api/bookings", bookingRoutes.getRouter())
+    const bookingRoutes = new BookingRoutes();
+    this.app.use("/api/bookings", bookingRoutes.getRouter());
 
     //User & Auth:
     this.app.use("/api", new UserRouter().getRouter());
     this.app.use("/api", new AuthRouter().getRouter());
-
+    this.app.use("/api", new OAuthRouter().getRouter());
   }
 
   public listen() {
