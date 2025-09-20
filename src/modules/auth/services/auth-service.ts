@@ -1,82 +1,142 @@
 import bcrypt from "bcrypt";
-import { randomBytes } from "crypto";
 import { JwtPayload, sign, SignOptions, verify } from "jsonwebtoken";
-import { $Enums, User } from "../../../generated/prisma";
+import { $Enums } from "../../../generated/prisma";
 import { ApiError } from "../../../shared/utils/api-error";
-import { MailUtils } from "../../../shared/utils/mail/mail";
+import { MailTokenService } from "../../../shared/utils/mail/mail-token-utils";
 import { UserRepository } from "../../user/repository/user-repository";
 import { LoginDTO, RegisterDTO } from "../dto/auth-dto";
 import { AuthRepository } from "../repositories/auth-repository";
 
 export class AuthService {
-  private userRepository: UserRepository;
-  private mailUtils: MailUtils;
-  private authRepository: AuthRepository;
-  constructor() {
-    this.userRepository = new UserRepository();
-    this.mailUtils = new MailUtils();
-    this.authRepository = new AuthRepository();
-  }
+  private userRepository = new UserRepository();
+  private authRepository = new AuthRepository();
+  private mailTokenService = new MailTokenService();
 
-  //user regist;
-  public async createUser(data: RegisterDTO): Promise<Omit<User, "password">> {
-    const hashedPassword = await bcrypt.hash(data.password, 10);
+  // ---------- Account Creation ----------
+  private async createAccount(data: RegisterDTO, role: $Enums.UserRole) {
+    const existing = await this.userRepository.findByEmail(data.email);
+
+    if (existing) {
+      if (existing.isEmailVerified) {
+        throw new ApiError(`${role} with this email already exists`, 400);
+      } else {
+        // Resend verification if already registered but not verified
+        await this.issueVerificationToken(existing.id, existing.email);
+        return {
+          message:
+            "Email already registered but not verified. Verification email resent.",
+          user: existing,
+        };
+      }
+    }
+
     const user = await this.userRepository.create({
-      ...data,
-      password: hashedPassword,
-      role: $Enums.UserRole["user"],
+      email: data.email,
+      role,
+      isEmailVerified: false,
     });
 
-    const { password, ...safeUser } = user;
-    return safeUser;
+    await this.issueVerificationToken(user.id, user.email);
+
+    return { message: "Verification email sent", user };
   }
 
-  //tenant regist;
-  public async createTenant(data: RegisterDTO) {
-    const hashedPassword = await bcrypt.hash(data.password, 10);
-    const user = await this.userRepository.create({
-      ...data,
-      password: hashedPassword,
-      role: $Enums.UserRole["tenant"],
-    });
-
-    const { password, ...safeUser } = user;
-    return safeUser;
+  public createUser(data: RegisterDTO) {
+    return this.createAccount(data, $Enums.UserRole.user);
   }
 
-  // user & tenant login + jwt Session:
+  public createTenant(data: RegisterDTO) {
+    return this.createAccount(data, $Enums.UserRole.tenant);
+  }
+
+  // ---------- Login ----------
   public async login(data: LoginDTO) {
-    const user = await this.userRepository.findByEmail(data.email);
+    const user = await this.userRepository.findByEmailWithPassword(data.email);
     if (!user) throw new ApiError("User not found", 404);
 
     const validPassword = await bcrypt.compare(data.password, user.password!);
     if (!validPassword) throw new ApiError("Password is incorrect", 401);
 
-    const secret = process.env.JWT_SECRET;
-    const expiresIn = process.env.JWT_EXPIRES_IN || "2h";
-    if (!secret) throw new ApiError("JWT Secret key not set", 401);
+    if (!process.env.JWT_SECRET)
+      throw new ApiError("JWT Secret key not set", 500);
 
-    const token = this.generateToken(user, secret, expiresIn);
+    const token = this.generateToken(
+      user,
+      process.env.JWT_SECRET,
+      process.env.JWT_EXPIRES_IN || "2h"
+    );
 
     const { password, ...safeUser } = user;
     return { accessToken: token, user: safeUser };
   }
 
-  //generateToken:
   private generateToken(user: any, secret: string, expiresIn: string) {
     const payload = { id: user.id, email: user.email, role: user.role };
     const options: SignOptions = { expiresIn: expiresIn as any };
     return sign(payload, secret, options);
   }
 
-  //token Validation:
+  // ---------- Email Verification ----------
+  private async issueVerificationToken(userId: number, email: string) {
+    await this.mailTokenService.sendVerification(userId, email);
+  }
+
+  public async resendVerificationEmail(email: string) {
+    const user = await this.userRepository.findByEmail(email);
+    if (!user) throw new ApiError("User not found", 404);
+    if (user.isEmailVerified) throw new ApiError("Email already verified", 400);
+
+    await this.issueVerificationToken(user.id, user.email);
+    return { message: "Verification email resent" };
+  }
+
+  // Unified verification handler
+  public async verifyTokenAndUpdate(
+    token: string,
+    type: $Enums.VerificationTokenType,
+    updateData: Partial<{ password: string; isEmailVerified: boolean }>
+  ) {
+    const record = await this.authRepository.findValidToken(token, type);
+    if (!record) throw new ApiError("Invalid or expired token", 401);
+
+    // updateUser returns safeUser (password already stripped)
+    const updatedUser = await this.userRepository.updateUser(
+      record.userId,
+      updateData
+    );
+
+    await this.authRepository.markUsed(record.id);
+
+    return { user: updatedUser };
+  }
+
+  // ---------- Password Reset ----------
+  public async forgotPassword(email: string) {
+    const user = await this.userRepository.findByEmailWithOAuth(email);
+    if (!user) throw new ApiError("User not found", 404);
+
+    if (user.oauthAccounts && user.oauthAccounts.length > 0) {
+      const providers = user.oauthAccounts
+        .map((acc) => acc.provider)
+        .join(", ");
+      throw new ApiError(
+        `Password reset not available for social login accounts (${providers})`,
+        400
+      );
+    }
+
+    await this.mailTokenService.sendPasswordReset(user.id, user.email);
+    return { message: "Password reset link sent" };
+  }
+
+  // ---------- JWT Validation (for session) ----------
   public async validateToken(token: string) {
-    const secret = process.env.JWT_SECRET;
-    if (!secret) throw new ApiError("JWT Secret key not set", 401);
+    if (!process.env.JWT_SECRET)
+      throw new ApiError("JWT Secret key not set", 500);
 
     let decoded: JwtPayload;
     try {
-      decoded = verify(token, secret) as JwtPayload;
+      decoded = verify(token, process.env.JWT_SECRET) as JwtPayload;
     } catch {
       throw new ApiError("Invalid or expired token.", 401);
     }
@@ -88,120 +148,5 @@ export class AuthService {
 
     const { password, ...safeUser } = user;
     return safeUser;
-  }
-
-  //send email verif;
-  public async sendVerificationEmail(email: string) {
-    const user = await this.userRepository.findByEmail(email);
-    if (!user) throw new ApiError("User not found", 404);
-
-    const secret = process.env.JWT_SECRET;
-    if (!secret) throw new ApiError("JWT Secret key not set", 401);
-
-    const token = sign(
-      { id: user.id, email: user.email, type: "verifyEmail" },
-      secret,
-      { expiresIn: "15m" }
-    );
-    const verifyLink = `http://localhost:3000/auth/verify-email/${token}`;
-
-    await this.mailUtils.sendMail(
-      email,
-      "Verify your email",
-      "email-verification",
-      {
-        verifyLink,
-        token,
-      }
-    );
-
-    return { message: "Verification email sent", verifyLink };
-  }
-
-  //email verif;
-  public async verifyEmail(token: string) {
-    const secret = process.env.JWT_SECRET;
-    if (!secret) throw new ApiError("JWT Secret key not set", 401);
-
-    let decoded: JwtPayload;
-    try {
-      decoded = verify(token, secret) as JwtPayload;
-    } catch {
-      throw new ApiError("Invalid or expired verification link", 401);
-    }
-
-    const user = await this.userRepository.findById(decoded.id as number);
-    if (!user) throw new ApiError("User not found", 404);
-    if (user.isEmailVerified) throw new ApiError("Email already verified", 403);
-
-    await this.userRepository.verifyEmail(user.id);
-    return { message: "Email verified successfully" };
-  }
-
-  //forgot password + send email forgot;
-  public async forgotPassword(email: string) {
-    const user = await this.userRepository.findByEmail(email);
-    if (!user) throw new ApiError("Invalid email address", 400);
-
-    const secret = process.env.JWT_SECRET;
-    if (!secret) throw new ApiError("JWT Secret key not set", 401);
-
-    const token = sign(
-      {
-        id: user.id,
-        updatedAt: user.updatedAt.getTime(),
-        type: "resetPassword",
-      },
-      secret,
-      { expiresIn: "15m" }
-    );
-    const resetLink = `http://localhost:3000/auth/reset-password/${token}`;
-
-    await this.mailUtils.sendMail(
-      email,
-      "Reset your password",
-      "reset-password",
-      { resetLink, token }
-    );
-    return { message: "Reset email sent", resetLink };
-  }
-
-  public async requestPasswordReset(email: string) {
-    const user = await this.userRepository.findByEmail(email);
-    if (!user) throw new ApiError("User not found", 404);
-
-    const token = randomBytes(32).toString("hex");
-    const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
-
-    await this.authRepository.create({
-      userId: user.id,
-      token,
-      type: "password_reset",
-      expiresAt,
-    });
-
-    const resetLink = `${process.env.APP_URL}/auth/reset-password?token=${token}`;
-
-    await this.mailUtils.sendMail(
-      email,
-      "Reset your password",
-      "reset-password",
-      { resetLink, token }
-    );
-
-    return { message: "Password reset link sent" };
-  }
-
-  public async resetPassword(userId: number, newPassword: string) {
-    if (!userId) throw new ApiError("User ID is required", 401);
-
-    const hashedPassword = await bcrypt.hash(newPassword, 10);
-    const updatedUser = await this.userRepository.updatePassword(
-      userId,
-      hashedPassword
-    );
-    if (!updatedUser) throw new ApiError("Failed to reset password", 400);
-
-    return { message: "Password reset successfully", userId: updatedUser.id };
   }
 }
