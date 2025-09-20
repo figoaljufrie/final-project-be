@@ -1,5 +1,6 @@
-// modules/auth/controller/auth-controller.ts
+import bcrypt from "bcrypt";
 import { Request, Response } from "express";
+import { $Enums } from "../../../generated/prisma";
 import { errHandle } from "../../../shared/helpers/err-handler";
 import { succHandle } from "../../../shared/helpers/succ-handler";
 import { AuthService } from "../services/auth-service";
@@ -13,13 +14,13 @@ export class AuthController {
 
   public registerUser = async (req: Request, res: Response) => {
     try {
-      const user = await this.authService.createUser(req.body);
-      return succHandle(res, "User registered successfully", user, 201);
+      const result = await this.authService.createUser(req.body);
+      return succHandle(res, "User registered successfully", result, 201);
     } catch (err) {
-      errHandle(
+      return errHandle(
         res,
-        "Failed to register as user.",
-        500,
+        "Failed to register user",
+        400,
         (err as Error).message
       );
     }
@@ -27,13 +28,13 @@ export class AuthController {
 
   public registerTenant = async (req: Request, res: Response) => {
     try {
-      const tenant = await this.authService.createTenant(req.body);
-      return succHandle(res, "Tenant registered successfully", tenant, 201);
+      const result = await this.authService.createTenant(req.body);
+      return succHandle(res, "Tenant registered successfully", result, 201);
     } catch (err) {
-      errHandle(
+      return errHandle(
         res,
-        "Failed to register as tenant",
-        500,
+        "Failed to register tenant",
+        400,
         (err as Error).message
       );
     }
@@ -41,72 +42,112 @@ export class AuthController {
 
   public login = async (req: Request, res: Response) => {
     try {
-      const data = await this.authService.login(req.body);
-      return succHandle(res, "Login successful", data, 200);
+      const result = await this.authService.login(req.body);
+      return succHandle(res, "Login successful", result, 200);
     } catch (err) {
-      errHandle(res, "Failed to login", 500, (err as Error).message);
+      return errHandle(res, "Login failed", 401, (err as Error).message);
     }
   };
 
-  public sendVerificationEmail = async (req: Request, res: Response) => {
+  // ✅ verify email & set password with Bearer token
+  public verifyEmailAndSetPassword = async (req: Request, res: Response) => {
     try {
-      const { email } = req.body;
-      if (!email) {
-        return errHandle(res, "Email is required", 400);
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return errHandle(res, "Authorization token missing", 401);
       }
 
-      const data = await this.authService.sendVerificationEmail(email);
-      return succHandle(res, "Verification email sent", data, 200);
-    } catch (err) {
-      errHandle(
-        res,
-        "Failed to send email verification",
-        500,
-        (err as Error).message
+      const token = authHeader.split(" ")[1];
+      const { password } = req.body;
+      if (!password) return errHandle(res, "Password is required", 400);
+
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      const result = await this.authService.verifyTokenAndUpdate(
+        token as string,
+        $Enums.VerificationTokenType.email_verification,
+        { isEmailVerified: true, password: hashedPassword }
       );
+
+      return succHandle(res, "Email verified and password set", result, 200);
+    } catch (err) {
+      return errHandle(res, "Verification failed", 400, (err as Error).message);
     }
   };
 
+  // ✅ verify email with Bearer token
   public verifyEmail = async (req: Request, res: Response) => {
     try {
-      const { token } = req.params;
-      if (!token) {
-        return errHandle(res, "Verification token is required", 400);
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return errHandle(res, "Authorization token missing", 401);
       }
-      const data = await this.authService.verifyEmail(token);
-      return succHandle(res, "Email verified successfully", data, 200);
+
+      const token = authHeader.split(" ")[1];
+
+      const result = await this.authService.verifyTokenAndUpdate(
+        token as string,
+        $Enums.VerificationTokenType.email_verification,
+        { isEmailVerified: true }
+      );
+
+      return succHandle(res, "Email verified successfully", result, 200);
     } catch (err) {
-      errHandle(res, "Failed to verify email", 500, (err as Error).message);
+      return errHandle(res, "Verification failed", 400, (err as Error).message);
+    }
+  };
+
+  public resendVerificationEmail = async (req: Request, res: Response) => {
+    try {
+      const { email } = req.body;
+      const result = await this.authService.resendVerificationEmail(email);
+      return succHandle(res, "Verification email resent", result, 200);
+    } catch (err) {
+      return errHandle(
+        res,
+        "Failed to resend email",
+        400,
+        (err as Error).message
+      );
     }
   };
 
   public forgotPassword = async (req: Request, res: Response) => {
     try {
       const { email } = req.body;
-      const data = await this.authService.forgotPassword(email);
-      return succHandle(res, "Password reset link sent", data, 200);
+      const result = await this.authService.forgotPassword(email);
+      return succHandle(res, "Password reset link sent", result, 200);
     } catch (err) {
-      errHandle(res, "Failed to sent reset link", 500, (err as Error).message);
+      return errHandle(
+        res,
+        "Failed to send reset link",
+        400,
+        (err as Error).message
+      );
     }
   };
 
+  // ✅ reset password with Bearer token
   public resetPassword = async (req: Request, res: Response) => {
     try {
-      const authUser = (req as any).user;
-      if (!authUser || !authUser.id) {
-        return errHandle(res, "Invalid token payload", 401);
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return errHandle(res, "Authorization token missing", 401);
       }
 
+      const token = authHeader.split(" ")[1];
       const { newPassword } = req.body;
-      if (!newPassword) {
-        return errHandle(res, "New Password is required", 400);
-      }
+      if (!newPassword) return errHandle(res, "New password is required", 400);
 
-      const result = await this.authService.resetPassword(
-        authUser.id,
-        newPassword
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+      const result = await this.authService.verifyTokenAndUpdate(
+        token as string,
+        $Enums.VerificationTokenType.password_reset,
+        { password: hashedPassword }
       );
-      return succHandle(res, "Password reset successfully", result, 200);
+
+      return succHandle(res, "Password reset successful", result, 200);
     } catch (err) {
       return errHandle(
         res,

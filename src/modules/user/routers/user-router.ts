@@ -20,7 +20,6 @@ export class UserRouter {
   }
 
   private initializeRoutes() {
-    // RBAC restricted (admin only)
     this.router.get(
       "/users",
       this.authMiddleware.authenticate,
@@ -35,53 +34,53 @@ export class UserRouter {
       this.userController.findById
     );
 
-    // Auth required
+
     this.router.get(
-      "/users/me",
+      "/users/:id/me",
       this.authMiddleware.authenticate,
       this.userController.getMe
     );
 
     this.router.patch(
-      "/users/:id/update-email",
+      "/users/update-email",
       this.authMiddleware.authenticate,
       this.userController.updateEmail
     );
 
     this.router.patch(
-      "/users/:id/update-user",
+      "/users/update-user",
       this.authMiddleware.authenticate,
       this.userController.updateUser
     );
 
     this.router.patch(
-      "/users/:id/update-avatar",
+      "/users/update-avatar",
       this.authMiddleware.authenticate,
       this.uploaderMiddleware.upload().single("avatar"),
       this.uploaderMiddleware.fileFilter([
         "image/png",
         "image/jpeg",
         "image/jpg",
+        "image/gif",
       ]),
       this.userController.updateAvatar
     );
 
-    // Password update → requires JWT verification
     this.router.patch(
-      "/users/:id/update-password",
+      "/users/update-password",
       this.jwtMiddleware.verifyToken,
       this.authMiddleware.authenticate,
       this.userController.updatePassword
     );
 
     this.router.patch(
-      "/users/:id/soft-delete",
+      "/users/soft-delete",
       this.authMiddleware.authenticate,
       this.userController.softDeleteUser
     );
 
     this.router.delete(
-      "/users/:id",
+      "/users",
       this.authMiddleware.authenticate,
       this.userController.hardDeleteUser
     );

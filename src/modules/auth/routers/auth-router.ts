@@ -1,66 +1,47 @@
-// modules/auth/routes/auth-router.ts
 import { Router } from "express";
-import { AuthMiddleware } from "../../../shared/middleware/auth-middleware";
-import { JWTMiddleware } from "../../../shared/middleware/jwt-middleware";
-import { RBACMiddleware } from "../../../shared/middleware/rbac-middleware";
+import {
+  forgotPasswordLimiter,
+  loginLimiter,
+} from "../../../shared/middleware/rate-limit-middleware";
 import { AuthController } from "../controllers/auth-controller";
-// import { validateEmail, validatePassword } etc. if needed
 
 export class AuthRouter {
   private router = Router();
   private authController = new AuthController();
-  private authMiddleware = new AuthMiddleware();
-  private rbacMiddleware = new RBACMiddleware();
-  private jwtMiddleware = new JWTMiddleware();
 
   constructor() {
     this.initializeRoutes();
   }
 
   private initializeRoutes() {
-    // Registration
+    // ---------- Registration ----------
+    this.router.post("/auth/register", this.authController.registerUser);
+    this.router.post("/auth/register-tenant", this.authController.registerTenant);
+
+    // ---------- Login ----------
+    this.router.post("/auth/login", 
+      // loginLimiter,
+      this.authController.login);
+
+    // ---------- Email Verification ----------
+    this.router.post("/auth/verify-email", this.authController.verifyEmail);
     this.router.post(
-      "/auth/register-user",
-      // validateEmail, validatePassword (optional)
-      this.authController.registerUser
+      "/auth/verify-email-set-password",
+      this.authController.verifyEmailAndSetPassword
     );
-
     this.router.post(
-      "/auth/register-tenant",
-      // validateEmail, validatePassword
-      this.authController.registerTenant
+      "/auth/resend-verification",
+      forgotPasswordLimiter,
+      this.authController.resendVerificationEmail
     );
 
-    // Login
-    this.router.post(
-      "/auth/login",
-      // validateEmail, validatePassword
-      this.authController.login
-    );
-
-    // Email verification
-    this.router.post(
-      "/auth/email-verification",
-      this.authController.sendVerificationEmail
-    );
-
-    this.router.get(
-      "/auth/verify-email/:token",
-      this.authController.verifyEmail
-    );
-
-    // Password reset
+    // ---------- Password Reset ----------
     this.router.post(
       "/auth/forgot-password",
-      // validateEmail
+      forgotPasswordLimiter,
       this.authController.forgotPassword
     );
-
-    this.router.post(
-      "/auth/reset-password",
-      this.jwtMiddleware.verifyToken,
-      this.authController.resetPassword
-    );
+    this.router.post("/auth/reset-password", this.authController.resetPassword);
   }
 
   public getRouter() {
