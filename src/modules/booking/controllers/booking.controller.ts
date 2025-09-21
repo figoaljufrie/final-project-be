@@ -1,17 +1,14 @@
 import { Request, Response } from 'express';
 import { validationResult } from 'express-validator';
 import { BookingService } from '../services/booking.service';
-import { UploaderMiddleware } from '../../../shared/middleware/uploader-middleware';
 import { succHandle } from '../../../shared/helpers/succ-handler';
 import { errHandle } from '../../../shared/helpers/err-handler';
 
 export class BookingController {
   private bookingService: BookingService;
-  private uploaderMiddleware: UploaderMiddleware;
 
   constructor() {
     this.bookingService = new BookingService();
-    this.uploaderMiddleware = new UploaderMiddleware();
   }
 
   // Create new booking

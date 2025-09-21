@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>New Payment Proof Uploaded</title>
+</head>
+<body style="font-family: Arial, sans-serif; background-color: #f7f7f7; padding: 20px;">
+    <table width="100%" cellspacing="0" cellpadding="0">
+        <tr>
+            <td align="center">
+                <table width="600" cellspacing="0" cellpadding="20" style="background: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <tr>
+                        <td>
+                            <h2 style="color: #333;">New Payment Proof Uploaded</h2>
+                            <p>Hello {{tenantName}},</p>
+                            <p>A new payment proof has been uploaded for booking <strong>{{bookingNo}}</strong>.</p>
+                            
+                            <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;">
+                                <h3 style="color: #495057; margin-top: 0;">Booking Details:</h3>
+                                <p><strong>Booking Number:</strong> {{bookingNo}}</p>
+                                <p><strong>Guest:</strong> {{userName}} ({{userEmail}})</p>
+                                <p><strong>Property:</strong> {{propertyName}}</p>
+                                <p><strong>Check-in:</strong> {{checkIn}}</p>
+                                <p><strong>Check-out:</strong> {{checkOut}}</p>
+                                <p><strong>Total Amount:</strong> Rp {{totalAmount}}</p>
+                                <p><strong>Payment Method:</strong> {{paymentMethod}}</p>
+                            </div>
+                            
+                            <p style="text-align: center; margin: 30px 0;">
+                                <a href="{{dashboardUrl}}" 
+                                   style="background: #28a745; color: #ffffff; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold;">
+                                    Review Payment Proof
+                                </a>
+                            </p>
+                            
+                            <p>Please review the payment proof and confirm the booking if the payment is valid.</p>
+                            <p>Thanks,<br/>Property Renting Team</p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

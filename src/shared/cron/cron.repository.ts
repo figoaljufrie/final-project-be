@@ -1,0 +1,98 @@
+import { prisma } from "../utils/prisma";
+import { BookingStatus } from "../../generated/prisma";
+
+export class CronRepository {
+  // Get expired bookings for auto-cancel
+  async getExpiredBookings() {
+    return await prisma.booking.findMany({
+      where: {
+        status: BookingStatus.waiting_for_payment,
+        paymentDeadline: {
+          lt: new Date(),
+        },
+      },
+      include: {
+        user: true,
+        items: {
+          include: {
+            room: {
+              include: {
+                property: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  // Get booking for auto-cancel by ID
+  async getBookingForAutoCancel(bookingId: number) {
+    return await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        user: true,
+        items: {
+          include: {
+            room: {
+              include: {
+                property: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  // Get booking for check-in reminder by ID
+  async getBookingForCheckInReminder(bookingId: number) {
+    return await prisma.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        user: true,
+        items: {
+          include: {
+            room: {
+              include: {
+                property: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  // Auto-cancel booking with transaction
+  async autoCancelBooking(bookingId: number, dates: Date[], roomId: number, unitCount: number) {
+    return await prisma.$transaction(async (tx) => {
+      // Update booking status
+      const updatedBooking = await tx.booking.update({
+        where: { id: bookingId },
+        data: {
+          status: BookingStatus.cancelled,
+          cancelledAt: new Date(),
+          cancelReason: "Payment deadline expired - Auto cancelled",
+        },
+      });
+
+      // Release room availability
+      for (const date of dates) {
+        await tx.roomAvailability.updateMany({
+          where: {
+            roomId: roomId,
+            date: date,
+          },
+          data: {
+            bookedUnits: {
+              decrement: unitCount,
+            },
+          },
+        });
+      }
+
+      return updatedBooking;
+    });
+  }
+}

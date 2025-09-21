@@ -1,4 +1,3 @@
-// import { BookingStatus, PaymentMethod } from "../../generated/prisma";
 import { $Enums } from "../../../generated/prisma";
 
 export interface CreateBookingRequest {
