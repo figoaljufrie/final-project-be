@@ -1,13 +1,18 @@
 import * as cron from "node-cron";
-import { prisma } from "../utils/prisma";
 import { BookingStatus } from "../../generated/prisma";
 import { BookingUtils } from "../utils/bookings/booking.utils";
+import { mailProofService, BookingEmailData } from "../utils/mail/mail-proof";
+import { CronRepository } from "./cron.repository";
+import { CronUtils } from "./cron.utils";
 
 export class CronService {
   private static instance: CronService;
   private scheduledTasks: Map<string, cron.ScheduledTask> = new Map();
+  private cronRepository: CronRepository;
 
-  private constructor() {}
+  private constructor() {
+    this.cronRepository = new CronRepository();
+  }
 
   public static getInstance(): CronService {
     if (!CronService.instance) {
@@ -22,23 +27,17 @@ export class CronService {
     bookingNo: string,
     deadlineDate: Date
   ): void {
-    const taskKey = `auto-cancel-${bookingId}`;
-
-    // Cancel existing task if any
+    const taskKey = CronUtils.generateAutoCancelTaskKey(bookingId);
     this.cancelScheduledTask(taskKey);
 
-    // Calculate when to run (at deadline time)
-    const cronExpression = this.dateToCronExpression(deadlineDate);
+    const cronExpression = CronUtils.dateToCronExpression(deadlineDate);
 
-    // Validate cron expression
-    if (!this.validateCronExpression(cronExpression)) {
+    if (!CronUtils.validateCronExpression(cronExpression)) {
       console.error(`Failed to schedule auto-cancel for booking ${bookingNo}: Invalid cron expression`);
       return;
     }
 
-    console.log(
-      `Scheduling auto-cancel for booking ${bookingNo} at ${deadlineDate.toISOString()}`
-    );
+    console.log(`Scheduling auto-cancel for booking ${bookingNo} at ${deadlineDate.toISOString()}`);
 
     try {
       const task = cron.schedule(
@@ -47,22 +46,17 @@ export class CronService {
           try {
             console.log(`Running auto-cancel for booking: ${bookingNo}`);
             await this.cancelExpiredBooking(bookingId);
-
-            // Remove task after execution
             this.cancelScheduledTask(taskKey);
           } catch (error) {
             console.error(`Error auto-canceling booking ${bookingNo}:`, error);
           }
         },
-        {
-          timezone: "Asia/Jakarta",
-        }
+        { timezone: "Asia/Jakarta" }
       );
 
       this.scheduledTasks.set(taskKey, task);
-      console.log(`Successfully scheduled auto-cancel task for booking ${bookingNo}`);
     } catch (error) {
-      console.error(`Failed to create cron task for booking ${bookingNo}:`, error);
+      console.error(`Failed to schedule auto-cancel for booking ${bookingNo}:`, error);
     }
   }
 
@@ -72,35 +66,24 @@ export class CronService {
     bookingNo: string,
     checkInDate: Date
   ): void {
-    const taskKey = `checkin-reminder-${bookingId}`;
+    const taskKey = CronUtils.generateCheckInReminderTaskKey(bookingId);
+    this.cancelScheduledTask(taskKey);
 
-    // Calculate H-1 (1 day before check-in at 10:00 AM)
-    const reminderDate = new Date(checkInDate);
-    reminderDate.setDate(reminderDate.getDate() - 1);
-    reminderDate.setHours(10, 0, 0, 0); // 10:00 AM
+    const reminderDate = CronUtils.calculateCheckInReminderDate(checkInDate);
 
-    // Don't schedule if reminder time is in the past
-    if (reminderDate <= new Date()) {
-      console.log(
-        `Check-in reminder for booking ${bookingNo} not scheduled (time has passed)`
-      );
+    if (CronUtils.isReminderDateInPast(reminderDate)) {
+      console.log(`Check-in reminder for booking ${bookingNo} is in the past, skipping`);
       return;
     }
 
-    // Cancel existing task if any
-    this.cancelScheduledTask(taskKey);
+    const cronExpression = CronUtils.dateToCronExpression(reminderDate);
 
-    const cronExpression = this.dateToCronExpression(reminderDate);
-
-    // Validate cron expression
-    if (!this.validateCronExpression(cronExpression)) {
+    if (!CronUtils.validateCronExpression(cronExpression)) {
       console.error(`Failed to schedule check-in reminder for booking ${bookingNo}: Invalid cron expression`);
       return;
     }
 
-    console.log(
-      `Scheduling check-in reminder for booking ${bookingNo} at ${reminderDate.toISOString()}`
-    );
+    console.log(`Scheduling check-in reminder for booking ${bookingNo} at ${reminderDate.toISOString()}`);
 
     try {
       const task = cron.schedule(
@@ -109,65 +92,42 @@ export class CronService {
           try {
             console.log(`Sending check-in reminder for booking: ${bookingNo}`);
             await this.sendCheckInReminder(bookingId);
-
-            // Remove task after execution
             this.cancelScheduledTask(taskKey);
       } catch (error) {
-            console.error(
-              `Error sending check-in reminder for booking ${bookingNo}:`,
-              error
-            );
+            console.error(`Error sending check-in reminder for booking ${bookingNo}:`, error);
           }
         },
-        {
-          timezone: "Asia/Jakarta",
-        }
+        { timezone: "Asia/Jakarta" }
       );
 
       this.scheduledTasks.set(taskKey, task);
-      console.log(`Successfully scheduled check-in reminder for booking ${bookingNo}`);
-    } catch (error) {
-      console.error(`Failed to create check-in reminder task for booking ${bookingNo}:`, error);
+      } catch (error) {
+      console.error(`Failed to schedule check-in reminder for booking ${bookingNo}:`, error);
     }
   }
 
-  // Cancel scheduled task for specific booking
+  // Cancel specific booking tasks
   public cancelBookingTasks(bookingId: number): void {
-    const autoCancelKey = `auto-cancel-${bookingId}`;
-    const reminderKey = `checkin-reminder-${bookingId}`;
+    const autoCancelKey = CronUtils.generateAutoCancelTaskKey(bookingId);
+    const checkinReminderKey = CronUtils.generateCheckInReminderTaskKey(bookingId);
 
     this.cancelScheduledTask(autoCancelKey);
-    this.cancelScheduledTask(reminderKey);
+    this.cancelScheduledTask(checkinReminderKey);
+
+    console.log(`Cancelled all tasks for booking ID: ${bookingId}`);
   }
 
-  // Manual trigger for testing
+  // Trigger auto-cancel for all expired bookings (manual trigger)
   public async triggerAutoCancelExpiredBookings(): Promise<void> {
-    const now = new Date();
-    
-    const expiredBookings = await prisma.booking.findMany({
-      where: {
-        status: BookingStatus.waiting_for_payment,
-        paymentDeadline: {
-          lt: now,
-        },
-      },
-      include: {
-        items: {
-          include: {
-            room: true,
-          },
-        },
-      },
-    });
+    console.log("Triggering auto-cancel for all expired bookings...");
 
-    console.log(`Found ${expiredBookings.length} expired bookings to cancel`);
+    const expiredBookings = await this.cronRepository.getExpiredBookings();
+    console.log(`Found ${expiredBookings.length} expired bookings`);
 
     for (const booking of expiredBookings) {
       try {
         await this.cancelExpiredBooking(booking.id);
-        console.log(
-          `Successfully cancelled expired booking: ${booking.bookingNo}`
-        );
+        console.log(`Successfully cancelled expired booking: ${booking.bookingNo}`);
       } catch (error) {
         console.error(`Failed to cancel booking ${booking.bookingNo}:`, error);
       }
@@ -176,12 +136,11 @@ export class CronService {
 
   // Get all scheduled tasks status
   public getScheduledTasksStatus(): any {
-    const tasks = Array.from(this.scheduledTasks.entries()).map(
-      ([key, task]) => ({
-        taskKey: key,
-        isRunning: task.getStatus() === "scheduled",
-      })
-    );
+    const tasks: any[] = [];
+
+    this.scheduledTasks.forEach((task, key) => {
+      tasks.push(CronUtils.getTaskStatusInfo(task, key));
+    });
 
     return {
       totalTasks: this.scheduledTasks.size,
@@ -189,172 +148,103 @@ export class CronService {
     };
   }
 
-  // Stop all scheduled tasks
+  // Stop all cron jobs
   public stopAllTasks(): void {
     console.log(`Stopping ${this.scheduledTasks.size} scheduled tasks...`);
 
-    const taskKeys = Array.from(this.scheduledTasks.keys());
-
-    taskKeys.forEach((key) => {
+    this.scheduledTasks.forEach((task, key) => {
       try {
-        const task = this.scheduledTasks.get(key);
-        if (task) {
-          task.destroy();
-          console.log(`Stopped task: ${key}`);
-        }
+        task.stop();
+        console.log(`Stopped task: ${key}`);
       } catch (error) {
         console.error(`Error stopping task ${key}:`, error);
       }
-      // Always remove from map
-      this.scheduledTasks.delete(key);
     });
 
-    console.log("All scheduled tasks stopped");
+    this.scheduledTasks.clear();
+    console.log("All tasks stopped");
   }
 
-  // PRIVATE HELPER METHODS
-
-  private validateCronExpression(expression: string): boolean {
-    try {
-      const testTask = cron.schedule(expression, () => {});
-      testTask.destroy();
-      return true;
-    } catch (error) {
-      console.error(`Invalid cron expression: ${expression}`, error);
-      return false;
-    }
-  }
-
-  private dateToCronExpression(date: Date): string {
-    // Check if date is in the past
-    if (date <= new Date()) {
-      console.warn(`Warning: Scheduled date ${date.toISOString()} is in the past`);
-      // Schedule for 1 minute from now as fallback
-      const fallbackDate = new Date();
-      fallbackDate.setMinutes(fallbackDate.getMinutes() + 1);
-
-      const minute = fallbackDate.getMinutes();
-      const hour = fallbackDate.getHours();
-      const day = fallbackDate.getDate();
-      const month = fallbackDate.getMonth() + 1;
-
-      return `${minute} ${hour} ${day} ${month} *`;
-    }
-
-    const minute = date.getMinutes();
-    const hour = date.getHours();
-    const day = date.getDate();
-    const month = date.getMonth() + 1;
-
-    // Format: minute hour day month *
-    return `${minute} ${hour} ${day} ${month} *`;
-  }
-
+  // Private helper methods
   private cancelScheduledTask(taskKey: string): void {
-    const existingTask = this.scheduledTasks.get(taskKey);
-    if (existingTask) {
+    const task = this.scheduledTasks.get(taskKey);
+    if (task) {
       try {
-        existingTask.destroy();
+        task.stop();
         this.scheduledTasks.delete(taskKey);
-        console.log(`Cancelled existing task: ${taskKey}`);
+        console.log(`Cancelled scheduled task: ${taskKey}`);
       } catch (error) {
         console.error(`Error cancelling task ${taskKey}:`, error);
-        // Still remove from map even if destroy fails
-        this.scheduledTasks.delete(taskKey);
       }
     }
   }
 
+  // Private methods for actual operations
   private async cancelExpiredBooking(bookingId: number): Promise<void> {
-    const booking = await prisma.booking.findUnique({
-      where: { id: bookingId },
-      include: {
-        items: {
-          include: {
-            room: true,
-          },
-        },
-      },
-    });
+    const booking = await this.cronRepository.getBookingForAutoCancel(bookingId);
 
     if (!booking) {
-      console.log(`Booking ${bookingId} not found`);
+      console.error(`Booking ${bookingId} not found`);
       return;
     }
 
     if (booking.status !== BookingStatus.waiting_for_payment) {
-      console.log(`Booking ${booking.bookingNo} is no longer waiting for payment`);
+      console.log(`Booking ${booking.bookingNo} is no longer waiting for payment, skipping cancellation`);
       return;
     }
 
-    await prisma.$transaction(async (tx) => {
-      // Update booking status to expired
-      await tx.booking.update({
-        where: { id: bookingId },
-        data: {
-          status: BookingStatus.expired,
-          cancelledAt: new Date(),
-          cancelReason: "Payment deadline exceeded - automatically cancelled by system",
-        },
+    // Cancel booking with transaction
+    const dates = BookingUtils.getDateRange(booking.checkIn, booking.checkOut);
+    const roomId = booking.items[0]?.roomId;
+    const unitCount = booking.items[0]?.unitCount;
+
+    if (!roomId || !unitCount) {
+      console.error(`Invalid booking data for booking ${booking.bookingNo}`);
+      return;
+    }
+
+    await this.cronRepository.autoCancelBooking(bookingId, dates, roomId, unitCount);
+
+    // Send cancellation email
+    try {
+      const emailData: BookingEmailData = BookingUtils.formatBookingEmailData(booking, {
+        cancellationReason: "Payment deadline expired - Auto cancelled",
+        bookingUrl: `${process.env.FRONTEND_URL}/bookings/${booking.id}`,
       });
+      await mailProofService.sendBookingCancelledEmail(emailData);
+      console.log(`Sent auto-cancellation email for booking: ${booking.bookingNo}`);
+    } catch (error) {
+      console.error(`Failed to send auto-cancellation email for booking ${booking.bookingNo}:`, error);
+    }
 
-      // Release room units
-      for (const item of booking.items) {
-        const dates = BookingUtils.getDateRange(booking.checkIn, booking.checkOut);
-        
-        for (const date of dates) {
-          await tx.roomAvailability.updateMany({
-            where: {
-              roomId: item.roomId,
-              date: date,
-            },
-            data: {
-              bookedUnits: {
-                decrement: item.unitCount,
-              },
-            },
-          });
-        }
-      }
-    });
-
-    console.log(`Booking ${booking.bookingNo} automatically cancelled due to payment deadline`);
-
-    // TODO: Send cancellation email to user
+    console.log(`Successfully auto-cancelled booking: ${booking.bookingNo}`);
   }
 
   private async sendCheckInReminder(bookingId: number): Promise<void> {
-    const booking = await prisma.booking.findUnique({
-      where: { id: bookingId },
-      include: {
-        user: true,
-        items: {
-          include: {
-            room: {
-              include: {
-                property: true,
-              },
-            },
-          },
-        },
-      },
-    });
+    const booking = await this.cronRepository.getBookingForCheckInReminder(bookingId);
 
     if (!booking) {
-      console.log(`Booking ${bookingId} not found for check-in reminder`);
+      console.error(`Booking ${bookingId} not found`);
       return;
     }
 
     if (booking.status !== BookingStatus.confirmed) {
-      console.log(`Booking ${booking.bookingNo} is not confirmed, skipping reminder`);
+      console.log(`Booking ${booking.bookingNo} is not confirmed, skipping check-in reminder`);
       return;
     }
 
-    console.log(
-      `Should send check-in reminder to: ${booking.user.email} for booking: ${booking.bookingNo}`
-    );
-
-    // TODO: Send check-in reminder email
-    // await this.emailService.sendCheckInReminder(booking);
+    // Send check-in reminder email
+    try {
+      const emailData: BookingEmailData = BookingUtils.formatBookingEmailData(booking, {
+        propertyAddress: booking.items[0]?.room?.property?.address || '',
+        contactPerson: 'Property Owner',
+        contactNumber: '',
+        bookingUrl: `${process.env.FRONTEND_URL}/bookings/${booking.id}`,
+      });
+      await mailProofService.sendCheckInReminderEmail(emailData);
+      console.log(`Sent check-in reminder email for booking: ${booking.bookingNo}`);
+    } catch (error) {
+      console.error(`Failed to send check-in reminder email for booking ${booking.bookingNo}:`, error);
+    }
   }
 }

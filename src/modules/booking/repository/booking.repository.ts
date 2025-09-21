@@ -3,30 +3,6 @@ import { BookingStatus } from "../../../generated/prisma";
 import { BookingFilter } from "../dto/booking.dto";
 
 export class BookingRepository {
-  // Create new booking
-  async createBooking(data: any) {
-    return await prisma.booking.create({
-      data,
-      include: {
-        items: {
-          include: {
-            room: {
-              include: {
-                property: {
-                  include: {
-                    images: {
-                      where: { isPrimary: true },
-                      take: 1,
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
-      },
-    });
-  }
 
   // Find booking by ID (untuk tenant/admin view)
   async findBookingById(id: number) {
@@ -152,24 +128,6 @@ export class BookingRepository {
     return { bookings, total };
   }
 
-  // Update booking
-  async updateBooking(id: number, data: any) {
-    return await prisma.booking.update({
-      where: { id },
-      data,
-      include: {
-        items: {
-          include: {
-            room: {
-              include: {
-                property: true,
-              },
-            },
-          },
-        },
-      },
-    });
-  }
 
   // Find room with availability
   async findRoomWithAvailability(

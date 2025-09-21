@@ -56,10 +56,10 @@ export class BookingRoutes {
     );
 
     this.router.post(
-      "/:bookingId/payment-proof",
+      "/:bookingId/upload-payment",
       this.authMiddleware.authenticate,
       this.rbacMiddleware.checkRole([$Enums.UserRole.user]),
-      this.uploaderMiddleware.upload().single("paymentProof"),
+      this.uploaderMiddleware.upload().single("file"),
       BookingValidation.uploadPaymentProof,
       this.bookingController.uploadPaymentProof
     );
