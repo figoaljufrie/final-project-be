@@ -263,6 +263,14 @@ model Booking {
   paymentMethod   PaymentMethod? @map("payment_method")
   paymentProofUrl String?        @map("payment_proof_url")
   paymentDeadline DateTime?      @map("payment_deadline")
+
+  // MIDTRANS FIELDS
+  midtransOrderId    String?   @map("midtrans_order_id")
+  midtransToken      String?   @map("midtrans_token")
+  midtransStatus     String?   @map("midtrans_status")
+  midtransPaymentType String?  @map("midtrans_payment_type")
+  midtransSettlementTime DateTime? @map("midtrans_settlement_time")
+
   checkIn         DateTime       @map("check_in") @db.Date
   checkOut        DateTime       @map("check_out") @db.Date
   totalGuests     Int            @map("total_guests")
@@ -283,6 +291,7 @@ model Booking {
   @@index([userId])
   @@index([status])
   @@index([checkIn, checkOut])
+  @@index([midtransOrderId])
   @@map("bookings")
 }
 
@@ -301,6 +310,22 @@ model BookingItem {
 
   @@index([bookingId])
   @@map("booking_items")
+}
+
+model WebhookLog {
+  id          Int      @id @default(autoincrement())
+  orderId     String   @map("order_id")
+  eventType   String   @map("event_type")  // payment, settlement, etc
+  status      String   // success, pending, failure
+  rawData     Json     @map("raw_data")    // Full webhook payload
+  processed   Boolean  @default(false)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([orderId])
+  @@index([eventType])
+  @@index([processed])
+  @@map("webhook_logs")
 }
 
 // ============ REVIEW MANAGEMENT ============

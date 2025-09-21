@@ -5,10 +5,11 @@ import cors from "cors";
 import { UserRouter } from "./modules/user/routers/user-router";
 import { AuthRouter } from "./modules/auth/routers/auth-router";
 import { BookingRoutes } from "./modules/booking/routers/booking.routes";
-import { CronService } from './shared/cron/cron.service';
-import { CronRoutes } from './shared/cron/cron.routes';
-import { OAuthRouter } from "./modules/oAuth/routers/oAuth-router";
+import { CronService } from './modules/cron/services/cron.service';
+import { CronRoutes } from './modules/cron/routers/cron.routes';
+// import { OAuthRouter } from "./modules/oAuth/routers/oAuth-router";
 import { TenantBookingRoutes } from "./modules/tenant/tenant-booking-status/routers/tenant-booking-status.routes";
+import { PaymentRoutes } from "./modules/payment/routers/payment.routes";
 import { prisma } from "./shared/utils/prisma";
 
 export class App {
@@ -48,12 +49,15 @@ export class App {
     // tenant booking routes
     this.app.use("/api/tenant/bookings", new TenantBookingRoutes().getRouter());
 
+    // payment routes (including webhook)
+    this.app.use("/api/payment", new PaymentRoutes().router);
+
     //User & Auth:
     this.app.use("/api", new UserRouter().getRouter());
     this.app.use("/api", new AuthRouter().getRouter());
     
-    // OAuth routes
-    this.app.use("/api", new OAuthRouter().getRouter());
+    // OAuth routes - Comment out for now
+    // this.app.use("/api", new OAuthRouter().getRouter());
   }
 
   // cron service setup for testing purpose

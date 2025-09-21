@@ -63,6 +63,13 @@ export class BookingRoutes {
       BookingValidation.uploadPaymentProof,
       this.bookingController.uploadPaymentProof
     );
+
+    this.router.post(
+      '/:bookingId/midtrans-payment',
+      this.authMiddleware.authenticate,
+      this.rbacMiddleware.checkRole([$Enums.UserRole.user]),
+      this.bookingController.createMidtransPayment
+    );
   }
 
   public getRouter(): Router {

@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
-import { CronService } from './cron.service';
-import { succHandle } from '../helpers/succ-handler';
-import { errHandle } from '../helpers/err-handler';
+import { CronService } from '../services/cron.service';
+import { succHandle } from '../../../shared/helpers/succ-handler';
+import { errHandle } from '../../../shared/helpers/err-handler';
 
 export class CronController {
   private cronService: CronService;

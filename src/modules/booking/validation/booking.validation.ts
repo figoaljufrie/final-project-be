@@ -44,7 +44,16 @@ export class BookingValidation {
     body('notes')
       .optional()
       .isLength({ max: 500 })
-      .withMessage('Notes cannot exceed 500 characters')
+      .withMessage('Notes cannot exceed 500 characters'),
+
+    body('paymentMethod')
+      .notEmpty()
+      .withMessage('Payment method is required')
+      .isIn([
+        $Enums.PaymentMethod.manual_transfer,
+        $Enums.PaymentMethod.payment_gateway,
+      ])
+      .withMessage('Invalid payment method. Must be manual_transfer or payment_gateway')
   ];
 
   // Validation untuk booking ID parameter

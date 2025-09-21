@@ -94,7 +94,7 @@ export class MailProofService {
     }
   }
 
-  // Booking-specific email methods
+  // 1. Payment proof uploaded (to tenant) - FEATURE 2 REQUIREMENT
   async sendPaymentProofUploadedEmail(data: BookingEmailData): Promise<void> {
     const tenantEmail = data.tenantEmail || data.userEmail; // Fallback to userEmail if tenantEmail not provided
     await this.sendEmail(
@@ -105,6 +105,7 @@ export class MailProofService {
     );
   }
 
+  // 2. Payment confirmed (to user) - FEATURE 2 REQUIREMENT
   async sendPaymentConfirmedEmail(data: BookingEmailData): Promise<void> {
     await this.sendEmail(
       data.userEmail,
@@ -114,6 +115,7 @@ export class MailProofService {
     );
   }
 
+  // 3. Payment rejected (to user) - FEATURE 2 REQUIREMENT
   async sendPaymentRejectedEmail(data: BookingEmailData): Promise<void> {
     await this.sendEmail(
       data.userEmail,
@@ -123,6 +125,7 @@ export class MailProofService {
     );
   }
 
+  // 4. Booking cancelled (to user) - FEATURE 2 REQUIREMENT
   async sendBookingCancelledEmail(data: BookingEmailData): Promise<void> {
     await this.sendEmail(
       data.userEmail,
@@ -132,6 +135,7 @@ export class MailProofService {
     );
   }
 
+  // 5. Check-in reminder (to user) - FEATURE 2 REQUIREMENT
   async sendCheckInReminderEmail(data: BookingEmailData): Promise<void> {
     await this.sendEmail(
       data.userEmail,
@@ -141,6 +145,7 @@ export class MailProofService {
     );
   }
 
+  // 6. Auto-cancel reminder (to user) - FEATURE 2 REQUIREMENT
   async sendAutoCancelReminderEmail(data: BookingEmailData): Promise<void> {
     await this.sendEmail(
       data.userEmail,
@@ -148,6 +153,37 @@ export class MailProofService {
       'auto-cancel-reminder',
       data
     );
+  }
+
+  // 7. Payment deadline warning (to user) - FEATURE 2 REQUIREMENT
+  async sendPaymentDeadlineWarningEmail(data: BookingEmailData): Promise<void> {
+    await this.sendEmail(
+      data.userEmail,
+      `Payment Deadline Warning - Booking ${data.bookingNo}`,
+      'payment-deadline-warning',
+      data
+    );
+  }
+
+  // 8. Booking completed (to user and tenant) - FEATURE 2 REQUIREMENT
+  async sendBookingCompletedEmail(data: BookingEmailData): Promise<void> {
+    // Send to user
+    await this.sendEmail(
+      data.userEmail,
+      `Booking Completed - ${data.bookingNo}`,
+      'booking-completed-user',
+      data
+    );
+
+    // Send to tenant if tenant email is provided
+    if (data.tenantEmail) {
+      await this.sendEmail(
+        data.tenantEmail,
+        `Booking Completed - ${data.bookingNo}`,
+        'booking-completed-tenant',
+        data
+      );
+    }
   }
 }
 

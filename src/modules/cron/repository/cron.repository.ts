@@ -1,5 +1,5 @@
-import { prisma } from "../utils/prisma";
-import { BookingStatus } from "../../generated/prisma";
+import { prisma } from "../../../shared/utils/prisma";
+import { BookingStatus } from "../../../generated/prisma";
 
 export class CronRepository {
   // Get expired bookings for auto-cancel
@@ -12,12 +12,28 @@ export class CronRepository {
         },
       },
       include: {
-        user: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
         items: {
           include: {
             room: {
               include: {
-                property: true,
+                property: {
+                  include: {
+                    tenant: {
+                      select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                      },
+                    },
+                  },
+                },
               },
             },
           },
@@ -31,12 +47,28 @@ export class CronRepository {
     return await prisma.booking.findUnique({
       where: { id: bookingId },
       include: {
-        user: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
         items: {
           include: {
             room: {
               include: {
-                property: true,
+                property: {
+                  include: {
+                    tenant: {
+                      select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                      },
+                    },
+                  },
+                },
               },
             },
           },
@@ -50,12 +82,28 @@ export class CronRepository {
     return await prisma.booking.findUnique({
       where: { id: bookingId },
       include: {
-        user: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
         items: {
           include: {
             room: {
               include: {
-                property: true,
+                property: {
+                  include: {
+                    tenant: {
+                      select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                      },
+                    },
+                  },
+                },
               },
             },
           },
