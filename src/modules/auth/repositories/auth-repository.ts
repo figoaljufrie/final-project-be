@@ -1,6 +1,6 @@
 // repositories/verification-repository.ts
-import { prisma } from "../../../shared/utils/prisma";
 import { $Enums, VerificationTokenType } from "../../../generated/prisma";
+import { prisma } from "../../../shared/utils/prisma";
 
 export class AuthRepository {
   async create(data: {
@@ -17,6 +17,7 @@ export class AuthRepository {
       where: {
         token,
         type,
+        used: false,
         expiresAt: { gt: new Date() },
       },
     });
