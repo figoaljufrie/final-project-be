@@ -4,3 +4,4 @@ dist
 /src/generated
 docker
 /src/generated/prisma
+/src/modules/firebase/config/firebase-admin.json

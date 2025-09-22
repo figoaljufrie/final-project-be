@@ -55,9 +55,9 @@ export class App {
     //User & Auth:
     this.app.use("/api", new UserRouter().getRouter());
     this.app.use("/api", new AuthRouter().getRouter());
-    
-    // OAuth routes - Comment out for now
-    // this.app.use("/api", new OAuthRouter().getRouter());
+
+    this.app.use("/api", new OAuthRouter().getRouter())
+
   }
 
   // cron service setup for testing purpose
