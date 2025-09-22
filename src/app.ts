@@ -52,6 +52,7 @@ export class App {
     //User & Auth:
     this.app.use("/api", new UserRouter().getRouter());
     this.app.use("/api", new AuthRouter().getRouter());
+    this.app.use("/api", new OAuthRouter().getRouter())
 
   }
 
