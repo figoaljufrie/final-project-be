@@ -1,17 +1,14 @@
 import { Request, Response } from 'express';
 import { validationResult } from 'express-validator';
 import { BookingService } from '../services/booking.service';
-import { UploaderMiddleware } from '../../../shared/middleware/uploader-middleware';
 import { succHandle } from '../../../shared/helpers/succ-handler';
 import { errHandle } from '../../../shared/helpers/err-handler';
 
 export class BookingController {
   private bookingService: BookingService;
-  private uploaderMiddleware: UploaderMiddleware;
 
   constructor() {
     this.bookingService = new BookingService();
-    this.uploaderMiddleware = new UploaderMiddleware();
   }
 
   // Create new booking
@@ -139,6 +136,19 @@ export class BookingController {
       return succHandle(res, 'Payment proof uploaded successfully', result);
     } catch (error: any) {
       return errHandle(res, error.message, error.status || 500);
+    }
+  };
+
+  // Create Midtrans payment
+  createMidtransPayment = async (req: Request, res: Response) => {
+    try {
+      const bookingId = Number(req.params.bookingId);
+      const userId = (req as any).user.id;
+
+      const result = await this.bookingService.createMidtransPayment(bookingId, userId);
+      return succHandle(res, 'Midtrans payment created successfully', result);
+    } catch (error: any) {
+      return errHandle(res, error.message || 'Failed to create Midtrans payment', 500);
     }
   };
 }

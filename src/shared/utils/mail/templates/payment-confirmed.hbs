@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Payment Confirmed - Booking Confirmed</title>
+</head>
+<body style="font-family: Arial, sans-serif; background-color: #f7f7f7; padding: 20px;">
+    <table width="100%" cellspacing="0" cellpadding="0">
+        <tr>
+            <td align="center">
+                <table width="600" cellspacing="0" cellpadding="20" style="background: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <tr>
+                        <td>
+                            <h2 style="color: #28a745;">Payment Confirmed!</h2>
+                            <p>Hello {{userName}},</p>
+                            <p>Great news! Your payment has been confirmed and your booking is now <strong>CONFIRMED</strong>.</p>
+                            
+                            <div style="background: #d4edda; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #28a745;">
+                                <h3 style="color: #155724; margin-top: 0;">Booking Confirmed:</h3>
+                                <p><strong>Booking Number:</strong> {{bookingNo}}</p>
+                                <p><strong>Property:</strong> {{propertyName}}</p>
+                                <p><strong>Check-in:</strong> {{checkIn}}</p>
+                                <p><strong>Check-out:</strong> {{checkOut}}</p>
+                                <p><strong>Total Amount:</strong> Rp {{totalAmount}}</p>
+                                <p><strong>Confirmation Notes:</strong> {{confirmationNotes}}</p>
+                            </div>
+                            
+                            <p style="text-align: center; margin: 30px 0;">
+                                <a href="{{bookingUrl}}" 
+                                   style="background: #007bff; color: #ffffff; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold;">
+                                    View Booking Details
+                                </a>
+                            </p>
+                            
+                            <p>We look forward to hosting you! If you have any questions, please don't hesitate to contact us.</p>
+                            <p>Thanks,<br/>Property Renting Team</p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

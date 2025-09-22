@@ -5,10 +5,12 @@ import cors from "cors";
 import { UserRouter } from "./modules/user/routers/user-router";
 import { AuthRouter } from "./modules/auth/routers/auth-router";
 import { BookingRoutes } from "./modules/booking/routers/booking.routes";
-import { CronService } from './shared/cron/cron.service';
-import { CronRoutes } from './shared/cron/cron.routes';
-import { OAuthRouter } from "./modules/oAuth/routers/oAuth-router";
-
+import { CronService } from './modules/cron/services/cron.service';
+import { CronRoutes } from './modules/cron/routers/cron.routes';
+// import { OAuthRouter } from "./modules/oAuth/routers/oAuth-router";
+import { TenantBookingRoutes } from "./modules/tenant/tenant-booking-status/routers/tenant-booking-status.routes";
+import { PaymentRoutes } from "./modules/payment/routers/payment.routes";
+import { prisma } from "./shared/utils/prisma";
 
 export class App {
   private app: Application;
@@ -43,15 +45,17 @@ export class App {
 
     // cron routes
     this.app.use("/api/cron", new CronRoutes().getRouter());
-    this.app.get("/");
 
-    // booking routes
-    const bookingRoutes = new BookingRoutes();
-    this.app.use("/api/bookings", bookingRoutes.getRouter());
+    // tenant booking routes
+    this.app.use("/api/tenant/bookings", new TenantBookingRoutes().getRouter());
+
+    // payment routes (including webhook)
+    this.app.use("/api/payment", new PaymentRoutes().router);
 
     //User & Auth:
     this.app.use("/api", new UserRouter().getRouter());
     this.app.use("/api", new AuthRouter().getRouter());
+
     this.app.use("/api", new OAuthRouter().getRouter())
 
   }
@@ -59,20 +63,19 @@ export class App {
   // cron service setup for testing purpose
   private setupGracefulShutdown() {
     // Graceful shutdown
-    process.on("SIGINT", () => {
+    process.on("SIGINT", async () => {
       console.log('Shutting down server...');
       this.cronService.stopAllTasks();
+      await prisma.$disconnect();
       process.exit(0);
     });
 
-    process.on("SIGTERM", () => {
+    process.on("SIGTERM", async () => {
       console.log('Shutting down server...');
       this.cronService.stopAllTasks();
+      await prisma.$disconnect();
       process.exit(0);
     });
-
-    this.app.use("/api", new OAuthRouter().getRouter());
-
   }
 
   public listen() {

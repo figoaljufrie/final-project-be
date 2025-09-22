@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Payment Deadline Reminder</title>
+</head>
+<body style="font-family: Arial, sans-serif; background-color: #f7f7f7; padding: 20px;">
+    <table width="100%" cellspacing="0" cellpadding="0">
+        <tr>
+            <td align="center">
+                <table width="600" cellspacing="0" cellpadding="20" style="background: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <tr>
+                        <td>
+                            <h2 style="color: #ffc107;">Payment Deadline Reminder</h2>
+                            <p>Hello {{userName}},</p>
+                            <p>This is a reminder that your payment deadline for booking <strong>{{bookingNo}}</strong> is approaching.</p>
+                            
+                            <div style="background: #fff3cd; padding: 15px; border-radius: 5px; margin: 20px 0; border-left: 4px solid #ffc107;">
+                                <h3 style="color: #856404; margin-top: 0;">Payment Deadline:</h3>
+                                <p><strong>Booking Number:</strong> {{bookingNo}}</p>
+                                <p><strong>Property:</strong> {{propertyName}}</p>
+                                <p><strong>Check-in:</strong> {{checkIn}}</p>
+                                <p><strong>Check-out:</strong> {{checkOut}}</p>
+                                <p><strong>Total Amount:</strong> Rp {{totalAmount}}</p>
+                                <p><strong>Payment Deadline:</strong> {{paymentDeadline}}</p>
+                                <p><strong>Time Remaining:</strong> {{timeRemaining}}</p>
+                            </div>
+                            
+                            <p style="text-align: center; margin: 30px 0;">
+                                <a href="{{paymentUrl}}" 
+                                   style="background: #ffc107; color: #212529; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold;">
+                                    Upload Payment Proof
+                                </a>
+                            </p>
+                            
+                            <p><strong>Important:</strong> If you don't upload your payment proof by the deadline, your booking will be automatically cancelled.</p>
+                            <p>Please upload your payment proof as soon as possible to secure your booking.</p>
+                            <p>Thanks,<br/>Property Renting Team</p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
