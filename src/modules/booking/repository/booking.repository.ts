@@ -281,4 +281,41 @@ export class BookingRepository {
       },
     });
   }
+
+  // Update booking (for Midtrans integration)
+  async updateBooking(bookingId: number, data: any) {
+    return await prisma.booking.update({
+      where: { id: bookingId },
+      data,
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            avatarUrl: true,
+          },
+        },
+        items: {
+          include: {
+            room: {
+              include: {
+                property: {
+                  include: {
+                    tenant: {
+                      select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+  }
 }

@@ -1,10 +1,16 @@
-import { BookingStatus } from "../../../generated/prisma";
+import { BookingStatus, PaymentMethod } from "../../../generated/prisma";
 import { ApiError } from "../../../shared/utils/api-error";
 import { BookingRepository } from "../repository/booking.repository";
-import { BookingUtils } from "../../../shared/utils/bookings/booking.utils";
+import { BookingUtils } from "../../../shared/utils/booking-utils";
+import { BookingValidationUtils } from "../utils/booking-validation.utils";
+import { BookingCalculationUtils } from "../utils/booking-calculation.utils";
+import { BookingEmailUtils } from "../utils/booking-email.utils";
 import { CloudinaryUtils } from "../../../shared/utils/cloudinary/cloudinary";
-import { CronService } from "../../../shared/cron/cron.service";
-import { mailProofService, BookingEmailData } from "../../../shared/utils/mail/mail-proof";
+import { CronService } from "../../cron/services/cron.service";
+import {
+  mailProofService,
+  BookingEmailData,
+} from "../../../shared/utils/mail/mail-proof";
 
 import {
   CreateBookingRequest,
@@ -14,37 +20,62 @@ import {
   CancelBookingRequest,
   UploadPaymentProofRequest,
 } from "../dto/booking.dto";
+import { PaymentService } from "../../payment/services/payment.service";
 
 export class BookingService {
   private bookingRepository: BookingRepository;
   private cloudinaryUtils: CloudinaryUtils;
   private cronService: CronService;
+  private paymentService: PaymentService;
 
   constructor() {
     this.bookingRepository = new BookingRepository();
     this.cloudinaryUtils = new CloudinaryUtils();
     this.cronService = CronService.getInstance();
+    this.paymentService = new PaymentService();
   }
 
   // Create new booking
   async createBooking(data: CreateBookingRequest) {
-    const { userId, roomId, checkIn, checkOut, totalGuests, unitCount, notes } = data;
+    const {
+      userId,
+      roomId,
+      checkIn,
+      checkOut,
+      totalGuests,
+      unitCount,
+      notes,
+      paymentMethod,
+    } = data;
 
-    // Validate dates using BookingUtils
-    const { checkInDate, checkOutDate, nights } = BookingUtils.validateBookingDates(checkIn, checkOut);
+    // Validate dates using BookingValidationUtils
+    const { checkInDate, checkOutDate, nights } =
+      BookingValidationUtils.validateBookingDates(checkIn, checkOut);
 
     // Check room availability
-    const room = await this.bookingRepository.findRoomWithAvailability(roomId, checkInDate, checkOutDate);
+    const room = await this.bookingRepository.findRoomWithAvailability(
+      roomId,
+      checkInDate,
+      checkOutDate
+    );
     if (!room) {
       throw new ApiError("Room not available", 400);
     }
 
-    // Validate capacity using BookingUtils
-    BookingUtils.validateBookingCapacity(room, totalGuests, unitCount);
+    // Validate capacity using BookingValidationUtils
+    BookingValidationUtils.validateBookingCapacity(
+      room,
+      totalGuests,
+      unitCount
+    );
 
-    // Calculate pricing using BookingUtils
+    // Calculate pricing using BookingCalculationUtils
     const dates = BookingUtils.getDateRange(checkInDate, checkOutDate);
-    const totalAmount = await BookingUtils.calculateTotalAmount(room, dates, unitCount);
+    const totalAmount = await BookingCalculationUtils.calculateTotalAmount(
+      room,
+      dates,
+      unitCount
+    );
 
     // Prepare booking data
     const bookingData = {
@@ -52,6 +83,7 @@ export class BookingService {
       userId,
       status: BookingStatus.waiting_for_payment,
       totalAmount,
+      paymentMethod, // Store selected payment method
       paymentDeadline: BookingUtils.getPaymentDeadline(),
       checkIn: checkInDate,
       checkOut: checkOutDate,
@@ -76,13 +108,32 @@ export class BookingService {
       unitCount
     );
 
-    this.cronService.scheduleBookingAutoCancel(booking.id, booking.bookingNo, booking.paymentDeadline!);
+    // Handle payment method specific logic
+    if (paymentMethod === PaymentMethod.payment_gateway) {
+      // For Midtrans payment, create payment immediately and return with payment data
+      const paymentData = await this.createMidtransPayment(booking.id, userId);
+
+      return {
+        ...booking,
+        midtransPayment: paymentData, // Include Midtrans payment data
+      };
+    } else {
+      // For manual transfer, schedule auto-cancel
+      this.cronService.scheduleBookingAutoCancel(
+        booking.id,
+        booking.bookingNo,
+        booking.paymentDeadline!
+      );
+    }
+
     return booking;
   }
 
   // Get user bookings with pagination
   async getUserBookings(filters: BookingFilter): Promise<BookingListResponse> {
-    const { bookings, total } = await this.bookingRepository.getUserBookings(filters);
+    const { bookings, total } = await this.bookingRepository.getUserBookings(
+      filters
+    );
     return {
       bookings: bookings as BookingWithDetails[],
       pagination: {
@@ -96,7 +147,10 @@ export class BookingService {
 
   // Get booking details
   async getBookingDetails(bookingId: number, userId: number) {
-    const booking = await this.bookingRepository.findUserBooking(bookingId, userId);
+    const booking = await this.bookingRepository.findUserBooking(
+      bookingId,
+      userId
+    );
     if (!booking) {
       throw new ApiError("Booking not found", 404);
     }
@@ -118,7 +172,8 @@ export class BookingService {
 
     // Cancel booking with transaction (ATOMIC)
     const dates = BookingUtils.getDateRange(booking.checkIn, booking.checkOut);
-    const cancelledBooking = await this.bookingRepository.cancelBookingWithTransaction(
+    const cancelledBooking =
+      await this.bookingRepository.cancelBookingWithTransaction(
         bookingId,
         cancelReason,
         booking.items,
@@ -133,20 +188,26 @@ export class BookingService {
   }
 
   // Upload payment proof
-  async uploadPaymentProof(data: UploadPaymentProofRequest, file: Express.Multer.File) {
+  async uploadPaymentProof(
+    data: UploadPaymentProofRequest,
+    file: Express.Multer.File
+  ) {
     const { bookingId, userId, paymentMethod } = data;
     const booking = await this.bookingRepository.findBookingById(bookingId);
 
     if (!booking || booking.userId !== userId) {
-      throw new ApiError('Booking not found', 404);
+      throw new ApiError("Booking not found", 404);
     }
 
     if (booking.status !== BookingStatus.waiting_for_payment) {
-      throw new ApiError('Payment proof can only be uploaded for bookings waiting for payment', 400);
+      throw new ApiError(
+        "Payment proof can only be uploaded for bookings waiting for payment",
+        400
+      );
     }
 
     if (booking.paymentDeadline && new Date() > booking.paymentDeadline) {
-      throw new ApiError('Payment deadline has passed', 400);
+      throw new ApiError("Payment deadline has passed", 400);
     }
 
     // Upload to Cloudinary and update booking
@@ -171,30 +232,65 @@ export class BookingService {
     };
   }
 
+  // Add Midtrans payment method
+  async createMidtransPayment(bookingId: number, userId: number) {
+    const booking = await this.bookingRepository.findBookingById(bookingId);
+
+    if (!booking || booking.userId !== userId) {
+      throw new ApiError("Booking not found", 404);
+    }
+
+    if (booking.status !== BookingStatus.waiting_for_payment) {
+      throw new ApiError("Booking is not in waiting for payment status", 400);
+    }
+
+    const paymentData = await this.paymentService.createPayment({
+      bookingId: booking.id,
+      bookingNo: booking.bookingNo,
+      totalAmount: booking.totalAmount,
+      userEmail: booking.user?.email || "",
+      userName: booking.user?.name || "User",
+    });
+
+    // Update booking with Midtrans data
+    await this.bookingRepository.updateBooking(bookingId, {
+      paymentMethod: PaymentMethod.payment_gateway,
+      midtransOrderId: paymentData.orderId,
+      midtransToken: paymentData.token,
+      midtransStatus: "pending",
+    });
+
+    return paymentData;
+  }
+
   // Private email methods
   private async sendCancellationEmail(booking: any, cancelReason: string) {
     try {
-      const emailData = BookingUtils.formatBookingEmailData(booking, {
+      const emailData = BookingEmailUtils.formatBookingEmailData(booking, {
         cancellationReason: cancelReason,
         bookingUrl: `${process.env.FRONTEND_URL}/bookings/${booking.id}`,
       });
       await mailProofService.sendBookingCancelledEmail(emailData);
     } catch (error) {
-      console.error('Failed to send cancellation email:', error);
+      console.error("Failed to send cancellation email:", error);
     }
   }
 
-  private async sendPaymentProofUploadedEmail(booking: any, paymentMethod: string) {
+  private async sendPaymentProofUploadedEmail(
+    booking: any,
+    paymentMethod: string
+  ) {
     try {
-      const emailData = BookingUtils.formatBookingEmailData(booking, {
+      const emailData = BookingEmailUtils.formatBookingEmailData(booking, {
         paymentMethod,
-        tenantName: booking.items[0]?.room?.property?.tenant?.name || 'Property Owner',
-        tenantEmail: booking.items[0]?.room?.property?.tenant?.email || '',
+        tenantName:
+          booking.items[0]?.room?.property?.tenant?.name || "Property Owner",
+        tenantEmail: booking.items[0]?.room?.property?.tenant?.email || "",
         dashboardUrl: `${process.env.FRONTEND_URL}/tenant/dashboard`,
       });
       await mailProofService.sendPaymentProofUploadedEmail(emailData);
     } catch (error) {
-      console.error('Failed to send payment proof email:', error);
+      console.error("Failed to send payment proof email:", error);
     }
   }
 }

@@ -1,7 +1,7 @@
 import { prisma } from "../../../../shared/utils/prisma";
 import { BookingStatus } from "../../../../generated/prisma";
 import { TenantBookingFilter } from "../dto/tenant-booking-status.dto";
-import { BookingUtils } from "../../../../shared/utils/bookings/booking.utils";
+import { BookingUtils } from "../../../../shared/utils/booking-utils";
 
 export class TenantBookingRepository {
   

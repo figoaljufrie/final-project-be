@@ -1,8 +1,8 @@
 import { Router } from 'express';
-import { CronController } from './cron.controller';
-import { AuthMiddleware } from '../middleware/auth-middleware';
-import { RBACMiddleware } from '../middleware/rbac-middleware';
-import { $Enums } from '../../generated/prisma';
+import { CronController } from '../controllers/cron.controller';
+import { AuthMiddleware } from '../../../shared/middleware/auth-middleware';
+import { RBACMiddleware } from '../../../shared/middleware/rbac-middleware';
+import { $Enums } from '../../../generated/prisma';
 
 export class CronRoutes {
   private router: Router;

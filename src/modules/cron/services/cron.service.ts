@@ -1,9 +1,10 @@
 import * as cron from "node-cron";
-import { BookingStatus } from "../../generated/prisma";
-import { BookingUtils } from "../utils/bookings/booking.utils";
-import { mailProofService, BookingEmailData } from "../utils/mail/mail-proof";
-import { CronRepository } from "./cron.repository";
-import { CronUtils } from "./cron.utils";
+import { BookingStatus } from "../../../generated/prisma";
+import { BookingUtils } from "../../../shared/utils/booking-utils";
+import { BookingEmailUtils } from "../../booking/utils/booking-email.utils";
+import { mailProofService, BookingEmailData } from "../../../shared/utils/mail/mail-proof";
+import { CronRepository } from "../repository/cron.repository";
+import { CronUtils } from "../utils/cron.utils";
 
 export class CronService {
   private static instance: CronService;
@@ -27,17 +28,17 @@ export class CronService {
     bookingNo: string,
     deadlineDate: Date
   ): void {
-    const taskKey = CronUtils.generateAutoCancelTaskKey(bookingId);
+    const taskKey = CronUtils.generateTaskId('auto-cancel', bookingId);
     this.cancelScheduledTask(taskKey);
 
-    const cronExpression = CronUtils.dateToCronExpression(deadlineDate);
+    const cronExpression = CronUtils.getCronExpression(deadlineDate);
 
-    if (!CronUtils.validateCronExpression(cronExpression)) {
-      console.error(`Failed to schedule auto-cancel for booking ${bookingNo}: Invalid cron expression`);
+    if (CronUtils.isDateInPast(deadlineDate)) {
+      console.error(`Failed to schedule auto-cancel for booking ${bookingNo}: Date is in the past`);
       return;
     }
 
-    console.log(`Scheduling auto-cancel for booking ${bookingNo} at ${deadlineDate.toISOString()}`);
+    console.log(`Scheduling auto-cancel for booking ${bookingNo} at ${CronUtils.formatDate(deadlineDate)}`);
 
     try {
       const task = cron.schedule(
@@ -66,24 +67,19 @@ export class CronService {
     bookingNo: string,
     checkInDate: Date
   ): void {
-    const taskKey = CronUtils.generateCheckInReminderTaskKey(bookingId);
+    const taskKey = CronUtils.generateTaskId('check-in-reminder', bookingId);
     this.cancelScheduledTask(taskKey);
 
-    const reminderDate = CronUtils.calculateCheckInReminderDate(checkInDate);
+    const reminderDate = CronUtils.getCheckInReminderDate(checkInDate);
 
-    if (CronUtils.isReminderDateInPast(reminderDate)) {
+    if (CronUtils.isDateInPast(reminderDate)) {
       console.log(`Check-in reminder for booking ${bookingNo} is in the past, skipping`);
       return;
     }
 
-    const cronExpression = CronUtils.dateToCronExpression(reminderDate);
+    const cronExpression = CronUtils.getCronExpression(reminderDate);
 
-    if (!CronUtils.validateCronExpression(cronExpression)) {
-      console.error(`Failed to schedule check-in reminder for booking ${bookingNo}: Invalid cron expression`);
-      return;
-    }
-
-    console.log(`Scheduling check-in reminder for booking ${bookingNo} at ${reminderDate.toISOString()}`);
+    console.log(`Scheduling check-in reminder for booking ${bookingNo} at ${CronUtils.formatDate(reminderDate)}`);
 
     try {
       const task = cron.schedule(
@@ -93,7 +89,7 @@ export class CronService {
             console.log(`Sending check-in reminder for booking: ${bookingNo}`);
             await this.sendCheckInReminder(bookingId);
             this.cancelScheduledTask(taskKey);
-      } catch (error) {
+          } catch (error) {
             console.error(`Error sending check-in reminder for booking ${bookingNo}:`, error);
           }
         },
@@ -101,15 +97,15 @@ export class CronService {
       );
 
       this.scheduledTasks.set(taskKey, task);
-      } catch (error) {
+    } catch (error) {
       console.error(`Failed to schedule check-in reminder for booking ${bookingNo}:`, error);
     }
   }
 
   // Cancel specific booking tasks
   public cancelBookingTasks(bookingId: number): void {
-    const autoCancelKey = CronUtils.generateAutoCancelTaskKey(bookingId);
-    const checkinReminderKey = CronUtils.generateCheckInReminderTaskKey(bookingId);
+    const autoCancelKey = CronUtils.generateTaskId('auto-cancel', bookingId);
+    const checkinReminderKey = CronUtils.generateTaskId('check-in-reminder', bookingId);
 
     this.cancelScheduledTask(autoCancelKey);
     this.cancelScheduledTask(checkinReminderKey);
@@ -139,7 +135,11 @@ export class CronService {
     const tasks: any[] = [];
 
     this.scheduledTasks.forEach((task, key) => {
-      tasks.push(CronUtils.getTaskStatusInfo(task, key));
+      tasks.push({
+        taskId: key,
+        running: task.getStatus() === 'scheduled',
+        nextExecution: 'N/A', // node-cron doesn't provide this info
+      });
     });
 
     return {
@@ -207,7 +207,7 @@ export class CronService {
 
     // Send cancellation email
     try {
-      const emailData: BookingEmailData = BookingUtils.formatBookingEmailData(booking, {
+      const emailData: BookingEmailData = BookingEmailUtils.formatBookingEmailData(booking, {
         cancellationReason: "Payment deadline expired - Auto cancelled",
         bookingUrl: `${process.env.FRONTEND_URL}/bookings/${booking.id}`,
       });
@@ -235,7 +235,7 @@ export class CronService {
 
     // Send check-in reminder email
     try {
-      const emailData: BookingEmailData = BookingUtils.formatBookingEmailData(booking, {
+      const emailData: BookingEmailData = BookingEmailUtils.formatBookingEmailData(booking, {
         propertyAddress: booking.items[0]?.room?.property?.address || '',
         contactPerson: 'Property Owner',
         contactNumber: '',

@@ -8,6 +8,7 @@ export interface CreateBookingRequest {
   totalGuests: number;
   unitCount: number;
   notes?: string;
+  paymentMethod: $Enums.PaymentMethod; // REQUIRED: User must choose payment method
 }
 
 export interface BookingResponse {
@@ -25,6 +26,12 @@ export interface BookingResponse {
   notes?: string;
   createdAt: Date;
   updatedAt: Date;
+  // Midtrans payment data (only for payment_gateway method)
+  midtransPayment?: {
+    token: string;
+    redirectUrl: string;
+    orderId: string;
+  };
 }
 
 export interface BookingFilter {

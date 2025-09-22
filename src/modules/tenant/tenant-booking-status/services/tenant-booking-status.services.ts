@@ -2,7 +2,7 @@ import { TenantBookingRepository } from '../repository/tenant-booking-status.rep
 import { TenantBookingFilter, ConfirmPaymentRequest, RejectPaymentRequest, CancelUserOrderRequest, SendReminderRequest } from '../dto/tenant-booking-status.dto';
 import { BookingStatus } from '../../../../generated/prisma';
 import { ApiError } from '../../../../shared/utils/api-error';
-import { CronService } from '../../../../shared/cron/cron.service';
+import { CronService } from '../../../cron/services/cron.service';
 import { mailProofService, BookingEmailData } from '../../../../shared/utils/mail/mail-proof';
 
 export class TenantBookingService {

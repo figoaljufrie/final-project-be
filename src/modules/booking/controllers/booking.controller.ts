@@ -138,4 +138,17 @@ export class BookingController {
       return errHandle(res, error.message, error.status || 500);
     }
   };
+
+  // Create Midtrans payment
+  createMidtransPayment = async (req: Request, res: Response) => {
+    try {
+      const bookingId = Number(req.params.bookingId);
+      const userId = (req as any).user.id;
+
+      const result = await this.bookingService.createMidtransPayment(bookingId, userId);
+      return succHandle(res, 'Midtrans payment created successfully', result);
+    } catch (error: any) {
+      return errHandle(res, error.message || 'Failed to create Midtrans payment', 500);
+    }
+  };
 }
