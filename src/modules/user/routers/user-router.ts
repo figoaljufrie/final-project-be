@@ -34,9 +34,8 @@ export class UserRouter {
       this.userController.findById
     );
 
-
     this.router.get(
-      "/users/:id/me",
+      "/users/me",
       this.authMiddleware.authenticate,
       this.userController.getMe
     );

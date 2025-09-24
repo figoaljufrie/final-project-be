@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
-import { OAuthService } from "../services/oAuth-service";
 import { errHandle } from "../../../shared/helpers/err-handler";
 import { succHandle } from "../../../shared/helpers/succ-handler";
+import { OAuthService } from "../services/oAuth-service";
 
 const service = new OAuthService();
 
