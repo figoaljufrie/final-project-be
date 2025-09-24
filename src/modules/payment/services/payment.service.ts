@@ -1,10 +1,10 @@
-import midtransClient, { Snap, CoreApi } from 'midtrans-node';
+import * as Midtrans from 'midtrans-client';
 import { ApiError } from '../../../shared/utils/api-error';
 import { MidtransPaymentRequest, MidtransPaymentResponse } from '../dto/payment.dto';
 
 export class PaymentService {
-  private snap: Snap;
-  private core: CoreApi;
+  private snap: any;
+  private core: any;
 
   constructor() {
     const serverKey = process.env.MIDTRANS_SERVER_KEY;
@@ -14,15 +14,16 @@ export class PaymentService {
       throw new Error('Midtrans credentials not configured');
     }
 
-    this.snap = new midtransClient.Snap({
+    this.snap = new Midtrans.Snap({
       isProduction: process.env.MIDTRANS_IS_PRODUCTION === 'true',
       serverKey: serverKey,
       clientKey: clientKey,
     });
 
-    this.core = new midtransClient.CoreApi({
+    this.core = new Midtrans.CoreApi({
       isProduction: process.env.MIDTRANS_IS_PRODUCTION === 'true',
       serverKey: serverKey,
+      clientKey: clientKey,
     });
   }
 
@@ -59,6 +60,7 @@ export class PaymentService {
         orderId: parameter.transaction_details.order_id,
       };
     } catch (error) {
+      console.error('Midtrans payment error:', error);
       throw new ApiError('Failed to create Midtrans payment', 500);
     }
   }

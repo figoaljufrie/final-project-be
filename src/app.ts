@@ -10,6 +10,7 @@ import { CronRoutes } from './modules/cron/routers/cron.routes';
 import { OAuthRouter } from "./modules/oAuth/routers/oAuth-router";
 import { TenantBookingRoutes } from "./modules/tenant/tenant-booking-status/routers/tenant-booking-status.routes";
 import { PaymentRoutes } from "./modules/payment/routers/payment.routes";
+import { ReviewRoutes } from "./modules/review/routers/review.routes";
 import { prisma } from "./shared/utils/prisma";
 
 export class App {
@@ -51,6 +52,9 @@ export class App {
 
     // payment routes (including webhook)
     this.app.use("/api/payment", new PaymentRoutes().router);
+
+    // review routes
+    this.app.use("/api/reviews", new ReviewRoutes().getRouter());
 
     //User & Auth:
     this.app.use("/api", new UserRouter().getRouter());
