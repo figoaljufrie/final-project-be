@@ -64,11 +64,19 @@ export class UserController {
       const authUser = (req as any).user;
       const file = req.file as Express.Multer.File;
       if (!file) {
-        return errHandle(res, "No file uploaded", 400, "Please upload an avatar file");
+        return errHandle(
+          res,
+          "No file uploaded",
+          400,
+          "Please upload an avatar file"
+        );
       }
 
       const result = await this.cloudinaryUtils.upload(file);
-      const updatedUser = await this.userService.updateAvatar(authUser.id, result.secure_url);
+      const updatedUser = await this.userService.updateAvatar(
+        authUser.id,
+        result.secure_url
+      );
 
       succHandle(res, "Avatar updated successfully", updatedUser, 200);
     } catch (err) {

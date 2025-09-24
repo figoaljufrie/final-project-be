@@ -7,7 +7,7 @@ import { AuthRouter } from "./modules/auth/routers/auth-router";
 import { BookingRoutes } from "./modules/booking/routers/booking.routes";
 import { CronService } from './modules/cron/services/cron.service';
 import { CronRoutes } from './modules/cron/routers/cron.routes';
-// import { OAuthRouter } from "./modules/oAuth/routers/oAuth-router";
+import { OAuthRouter } from "./modules/oAuth/routers/oAuth-router";
 import { TenantBookingRoutes } from "./modules/tenant/tenant-booking-status/routers/tenant-booking-status.routes";
 import { PaymentRoutes } from "./modules/payment/routers/payment.routes";
 import { prisma } from "./shared/utils/prisma";

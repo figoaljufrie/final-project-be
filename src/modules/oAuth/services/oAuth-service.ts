@@ -1,7 +1,7 @@
+import { ApiError } from "../../../shared/utils/api-error";
+import admin from "../../firebase/config/firebase-config";
 import { UserRepository } from "../../user/repository/user-repository";
 import { OAuthRepository } from "../repositories/oAuth-repository";
-import admin from "../../firebase/config/firebase-config";
-import { ApiError } from "../../../shared/utils/api-error";
 
 export class OAuthService {
   private userRepository = new UserRepository();
