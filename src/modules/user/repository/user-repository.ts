@@ -28,6 +28,19 @@ export class UserRepository {
     return safeUser;
   }
 
+  public async verifyEmailAndSetPassword(userId: number, hashedPassword: string) {
+  const updatedUser = await prisma.user.update({
+    where: { id: userId },
+    data: {
+      password: hashedPassword,
+      isEmailVerified: true,
+    },
+  });
+
+  const { password, ...safeUser } = updatedUser;
+  return safeUser;
+}
+
   public async findByEmail(email: string) {
     const user = await prisma.user.findFirst({
       where: { email, deletedAt: null },
