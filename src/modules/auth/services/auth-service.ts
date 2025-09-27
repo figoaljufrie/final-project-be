@@ -99,11 +99,19 @@ export class AuthService {
     const record = await this.authRepository.findValidToken(token, type);
     if (!record) throw new ApiError("Invalid or expired token", 401);
 
-    // updateUser returns safeUser (password already stripped)
-    const updatedUser = await this.userRepository.updateUser(
-      record.userId,
-      updateData
-    );
+    let updatedUser;
+
+    if (updateData.password) {
+      updatedUser = await this.userRepository.verifyEmailAndSetPassword(
+        record.userId,
+        updateData.password
+      );
+    } else {
+      updatedUser = await this.userRepository.updateUser(
+        record.userId,
+        updateData
+      );
+    }
 
     await this.authRepository.markUsed(record.id);
 
