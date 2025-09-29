@@ -8,10 +8,18 @@ export class BookingUtils {
     return `BK${timestamp.slice(-6)}${random}`;
   }
 
-  // Get payment deadline (1 hour from now)
-  static getPaymentDeadline(): Date {
+  // Get payment deadline based on payment method
+  static getPaymentDeadline(paymentMethod: 'manual_transfer' | 'payment_gateway'): Date {
     const deadline = new Date();
-    deadline.setHours(deadline.getHours() + 1);
+    
+    if (paymentMethod === 'manual_transfer') {
+      // Manual transfer: 1 hour deadline
+      deadline.setHours(deadline.getHours() + 1);
+    } else if (paymentMethod === 'payment_gateway') {
+      // Payment gateway: 24 hours deadline (Midtrans standard)
+      deadline.setHours(deadline.getHours() + 24);
+    }
+    
     return deadline;
   }
 

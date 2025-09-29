@@ -110,7 +110,7 @@ export class UserRepository {
 
   public async updateUser(id: number, data: Partial<UserDTO>) {
     // strip password & email if provided
-    const { password: _, email: __, ...safeData } = data;
+    const { email: __, ...safeData } = data;
 
     const updatedUser = await prisma.user.update({
       where: { id },

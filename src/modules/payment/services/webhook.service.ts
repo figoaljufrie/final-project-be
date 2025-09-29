@@ -4,6 +4,7 @@ import { ApiError } from '../../../shared/utils/api-error';
 import { mailProofService, BookingEmailData } from '../../../shared/utils/mail/mail-proof';
 import { CronService } from '../../cron/services/cron.service';
 import { MidtransWebhookData } from '../dto/payment.dto';
+import { BookingUtils } from '../../../shared/utils/booking-utils';
 
 export class WebhookService {
   private cronService: CronService;
@@ -161,14 +162,21 @@ export class WebhookService {
   }
 
   private async handleFailedPayment(booking: any, webhookData: MidtransWebhookData): Promise<void> {
-    // Update Midtrans status
+    // Update booking status to cancelled for failed payments
     await prisma.booking.update({
       where: { id: booking.id },
       data: {
+        status: BookingStatus.cancelled,
+        cancelledAt: new Date(),
+        cancelReason: `Payment ${webhookData.transaction_status} - ${webhookData.status_message}`,
         midtransStatus: webhookData.transaction_status,
         midtransPaymentType: webhookData.payment_type,
       },
     });
+
+    // Cancel any scheduled tasks and release room availability
+    this.cronService.cancelBookingTasks(booking.id);
+    await this.releaseRoomAvailability(booking);
 
     // Send payment failed email
     await this.sendPaymentFailedEmail(booking, webhookData);
@@ -211,6 +219,30 @@ export class WebhookService {
       await mailProofService.sendPaymentRejectedEmail(emailData);
     } catch (error) {
       console.error('Failed to send payment failed email:', error);
+    }
+  }
+
+  private async releaseRoomAvailability(booking: any): Promise<void> {
+    try {
+      const dates = BookingUtils.getDateRange(booking.checkIn, booking.checkOut);
+      
+      for (const date of dates) {
+        await prisma.roomAvailability.updateMany({
+          where: {
+            roomId: booking.items[0].roomId,
+            date: date,
+          },
+          data: {
+            bookedUnits: {
+              decrement: booking.items[0].unitCount,
+            },
+          },
+        });
+      }
+      
+      console.log(`Released room availability for booking ${booking.bookingNo}`);
+    } catch (error) {
+      console.error('Failed to release room availability:', error);
     }
   }
 }

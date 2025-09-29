@@ -43,5 +43,11 @@ export class PaymentRoutes {
       '/webhook',
       this.paymentController.handleWebhook
     );
+
+    // Testing webhook endpoint (no signature verification)
+    this.router.post(
+      '/webhook-test',
+      this.paymentController.handleWebhookTest
+    );
   }
 }
