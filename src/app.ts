@@ -6,7 +6,6 @@ import { UserRouter } from "./modules/user/routers/user-router";
 import { AuthRouter } from "./modules/auth/routers/auth-router";
 import { BookingRoutes } from "./modules/booking/routers/booking.routes";
 import { CronService } from './modules/cron/services/cron.service';
-import { CronRoutes } from './modules/cron/routers/cron.routes';
 import { OAuthRouter } from "./modules/oAuth/routers/oAuth-router";
 import { TenantBookingRoutes } from "./modules/tenant/tenant-booking-status/routers/tenant-booking-status.routes";
 import { PaymentRoutes } from "./modules/payment/routers/payment.routes";
@@ -44,8 +43,6 @@ export class App {
     // booking routes
     this.app.use("/api/bookings", new BookingRoutes().getRouter());
 
-    // cron routes
-    this.app.use("/api/cron", new CronRoutes().getRouter());
 
     // tenant booking routes
     this.app.use("/api/tenant/bookings", new TenantBookingRoutes().getRouter());
@@ -85,7 +82,24 @@ export class App {
   public listen() {
     this.app.listen(this.port, () => {
       console.log(`Server is running on http://localhost:${this.port}`);
+      this.startCronJobs();
     });
+  }
+
+  // Start automatic cron jobs
+  private startCronJobs() {
+    console.log('Starting automatic cron jobs...');
+    
+    // Auto-cancel expired bookings every minute
+    setInterval(async () => {
+      try {
+        await this.cronService.triggerAutoCancelExpiredBookings();
+      } catch (error) {
+        console.error('Error in auto-cancel cron job:', error);
+      }
+    }, 60000); // Every minute
+
+    console.log('Cron jobs started successfully');
   }
 }
 

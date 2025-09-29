@@ -2,11 +2,12 @@ import { prisma } from "../../../shared/utils/prisma";
 import { BookingStatus } from "../../../generated/prisma";
 
 export class CronRepository {
-  // Get expired bookings for auto-cancel
+  // Get expired bookings for auto-cancel (only manual_transfer)
   async getExpiredBookings() {
     return await prisma.booking.findMany({
       where: {
         status: BookingStatus.waiting_for_payment,
+        paymentMethod: 'manual_transfer', // Only auto-cancel manual transfer bookings
         paymentDeadline: {
           lt: new Date(),
         },

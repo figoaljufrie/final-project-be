@@ -84,7 +84,7 @@ export class BookingService {
       status: BookingStatus.waiting_for_payment,
       totalAmount,
       paymentMethod, // Store selected payment method
-      paymentDeadline: BookingUtils.getPaymentDeadline(),
+      paymentDeadline: BookingUtils.getPaymentDeadline(paymentMethod),
       checkIn: checkInDate,
       checkOut: checkOutDate,
       totalGuests,
@@ -113,8 +113,11 @@ export class BookingService {
       // For Midtrans payment, create payment immediately and return with payment data
       const paymentData = await this.createMidtransPayment(booking.id, userId);
 
+      // Get updated booking with Midtrans data
+      const updatedBooking = await this.bookingRepository.findBookingById(booking.id);
+
       return {
-        ...booking,
+        ...updatedBooking,
         midtransPayment: paymentData, // Include Midtrans payment data
       };
     } else {
@@ -125,6 +128,9 @@ export class BookingService {
         booking.paymentDeadline!
       );
     }
+    
+    // Note: Payment gateway bookings don't need auto-cancel scheduling
+    // because Midtrans handles expiration automatically via webhooks
 
     return booking;
   }

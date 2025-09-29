@@ -73,4 +73,24 @@ export class PaymentController {
       return errHandle(res, error.message || 'Failed to process webhook', 500);
     }
   };
+
+  // Testing endpoint - no signature verification required
+  handleWebhookTest = async (req: Request, res: Response) => {
+    try {
+      const webhookData = req.body;
+
+      // Process webhook data without signature verification
+      await this.webhookService.processWebhook(webhookData);
+      
+      return succHandle(res, 'Webhook processed successfully', {
+        order_id: webhookData.order_id,
+        transaction_status: webhookData.transaction_status,
+        bookingStatus: webhookData.transaction_status === 'capture' ? 'confirmed' : 
+                      webhookData.transaction_status === 'deny' || webhookData.transaction_status === 'expire' ? 'cancelled' : 'waiting_for_payment'
+      });
+    } catch (error: any) {
+      console.error('Webhook processing error:', error);
+      return errHandle(res, error.message || 'Failed to process webhook', 500);
+    }
+  };
 }
