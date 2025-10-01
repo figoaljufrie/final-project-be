@@ -2,7 +2,6 @@ import { BookingStatus, PaymentMethod } from "../../../generated/prisma";
 import { ApiError } from "../../../shared/utils/api-error";
 import { BookingRepository } from "../repository/booking.repository";
 import { BookingUtils } from "../../../shared/utils/booking-utils";
-import { BookingValidationUtils } from "../utils/booking-validation.utils";
 import { BookingCalculationUtils } from "../utils/booking-calculation.utils";
 import { BookingEmailUtils } from "../utils/booking-email.utils";
 import { CloudinaryUtils } from "../../../shared/utils/cloudinary/cloudinary";
@@ -48,9 +47,10 @@ export class BookingService {
       paymentMethod,
     } = data;
 
-    // Validate dates using BookingValidationUtils
-    const { checkInDate, checkOutDate, nights } =
-      BookingValidationUtils.validateBookingDates(checkIn, checkOut);
+    // Validate dates (validation already done in controller via express-validator)
+    const checkInDate = new Date(checkIn);
+    const checkOutDate = new Date(checkOut);
+    const nights = BookingUtils.calculateNights(checkInDate, checkOutDate);
 
     // Check room availability
     const room = await this.bookingRepository.findRoomWithAvailability(
@@ -62,12 +62,20 @@ export class BookingService {
       throw new ApiError("Room not available", 400);
     }
 
-    // Validate capacity using BookingValidationUtils
-    BookingValidationUtils.validateBookingCapacity(
-      room,
-      totalGuests,
-      unitCount
-    );
+    // Validate capacity (basic validation already done in controller via express-validator)
+    if (totalGuests > room.capacity * unitCount) {
+      throw new ApiError(
+        `Room capacity exceeded. Maximum guests: ${room.capacity * unitCount}`,
+        400
+      );
+    }
+
+    if (unitCount > room.totalUnits) {
+      throw new ApiError(
+        `Not enough units available. Available units: ${room.totalUnits}`,
+        400
+      );
+    }
 
     // Calculate pricing using BookingCalculationUtils
     const dates = BookingUtils.getDateRange(checkInDate, checkOutDate);

@@ -140,9 +140,10 @@ export class WebhookService {
       },
     });
 
-    // Cancel auto-cancel task dan schedule check-in reminder
+    // Cancel auto-cancel task dan schedule check-in reminder and booking completion
     this.cronService.cancelBookingTasks(booking.id);
     this.cronService.scheduleCheckInReminder(booking.id, booking.bookingNo, booking.checkIn);
+    this.cronService.scheduleBookingCompletion(booking.id, booking.bookingNo, booking.checkOut);
 
     // Send payment confirmed email
     await this.sendPaymentConfirmedEmail(booking, webhookData);
@@ -192,13 +193,25 @@ export class WebhookService {
         checkIn: booking.checkIn.toISOString().split('T')[0] || '',
         checkOut: booking.checkOut.toISOString().split('T')[0] || '',
         totalAmount: booking.totalAmount.toLocaleString('id-ID'),
+        paymentMethod: 'payment_gateway',
         confirmationNotes: `Payment confirmed via ${webhookData.payment_type}`,
         bookingUrl: `${process.env.FRONTEND_URL}/bookings/${booking.id}`,
+        bookingDetailUrl: `${process.env.FRONTEND_URL}/bookings/${booking.id}`,
+        // Tenant data
+        tenantName: booking.items[0]?.room?.property?.tenant?.name || 'Property Owner',
+        tenantEmail: booking.items[0]?.room?.property?.tenant?.email || '',
+        tenantDashboardUrl: `${process.env.FRONTEND_URL}/tenant/dashboard`,
       };
       
-      await mailProofService.sendPaymentConfirmedEmail(emailData);
+      // Send confirmation email to user
+      await mailProofService.sendUserPaymentConfirmationEmail(emailData);
+      
+      // Send notification email to tenant
+      await mailProofService.sendTenantNewPaymentNotificationEmail(emailData);
+      
+      console.log(`Sent payment confirmation emails for booking: ${booking.bookingNo}`);
     } catch (error) {
-      console.error('Failed to send payment confirmed email:', error);
+      console.error('Failed to send payment confirmed emails:', error);
     }
   }
 

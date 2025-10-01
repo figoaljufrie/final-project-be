@@ -34,17 +34,17 @@ export interface CreateReviewReplyResponse {
 // ============ REVIEW QUERIES ============
 
 export interface GetReviewsRequest {
-  propertyId?: number;
-  userId?: number;
-  rating?: number;
-  hasComment?: boolean;
-  hasReply?: boolean;
-  startDate?: string;
-  endDate?: string;
-  page?: number;
-  limit?: number;
-  sortBy?: 'createdAt' | 'rating';
-  sortOrder?: 'asc' | 'desc';
+  propertyId?: number | undefined;
+  userId?: number | undefined;
+  rating?: number | undefined;
+  hasComment?: boolean | undefined;
+  hasReply?: boolean | undefined;
+  startDate?: string | undefined;
+  endDate?: string | undefined;
+  page?: number | undefined;
+  limit?: number | undefined;
+  sortBy?: 'createdAt' | 'rating' | undefined;
+  sortOrder?: 'asc' | 'desc' | undefined;
 }
 
 export interface GetUserReviewsRequest {
@@ -132,7 +132,7 @@ export interface ReviewEligibilityResponse {
     bookingNo: string;
     status: string;
     checkOut: Date;
-    completedAt?: Date;
+    completedAt?: Date | undefined;
   };
 }
 

@@ -78,6 +78,30 @@ export class CronRepository {
     });
   }
 
+  // Get booking by ID
+  async getBookingById(bookingId: number) {
+    return await prisma.booking.findUnique({
+      where: { id: bookingId },
+      select: {
+        id: true,
+        bookingNo: true,
+        status: true,
+        checkOut: true,
+      },
+    });
+  }
+
+  // Complete booking after checkout
+  async completeBooking(bookingId: number) {
+    return await prisma.booking.update({
+      where: { id: bookingId },
+      data: {
+        status: BookingStatus.completed,
+        completedAt: new Date(),
+      },
+    });
+  }
+
   // Get booking for check-in reminder by ID
   async getBookingForCheckInReminder(bookingId: number) {
     return await prisma.booking.findUnique({

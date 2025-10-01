@@ -1,4 +1,4 @@
-import { prisma } from '../../../shared/utils/prisma';
+import { PrismaClient } from '../../../generated/prisma';
 import { BookingStatus } from '../../../generated/prisma';
 import { 
   ReviewFilter, 
@@ -16,12 +16,13 @@ import {
 } from '../dto/review.dto';
 
 export class ReviewRepository {
+  constructor(private prisma: PrismaClient) {}
 
   // ============ REVIEW CREATION ============
   
   async createReview(data: CreateReviewRequest & { userId: number }): Promise<ReviewWithDetails> {
     // Get booking to extract propertyId
-    const booking = await prisma.booking.findUnique({
+    const booking = await this.prisma.booking.findUnique({
       where: { id: data.bookingId },
       include: {
         items: {
@@ -45,19 +46,20 @@ export class ReviewRepository {
       throw new Error('Property not found for booking');
     }
 
-    return await prisma.review.create({
+    return await this.prisma.review.create({
       data: {
         userId: data.userId,
         propertyId: propertyId,
         bookingId: data.bookingId,
         rating: data.rating,
-        comment: data.comment,
+        comment: data.comment || null,
       },
       include: {
         user: {
           select: {
             id: true,
             name: true,
+            email: true,
             avatarUrl: true,
           },
         },
@@ -88,7 +90,7 @@ export class ReviewRepository {
           },
         },
       },
-    });
+    }) as any;
   }
 
   // ============ REVIEW REPLY CREATION ============
@@ -97,7 +99,7 @@ export class ReviewRepository {
     reviewId: number, 
     data: CreateReviewReplyRequest & { tenantId: number }
   ): Promise<ReviewReplyWithDetails> {
-    return await prisma.reviewReply.create({
+    return await this.prisma.reviewReply.create({
       data: {
         reviewId,
         tenantId: data.tenantId,
@@ -108,11 +110,12 @@ export class ReviewRepository {
           select: {
             id: true,
             name: true,
+            email: true,
             avatarUrl: true,
           },
         },
       },
-    });
+    }) as any;
   }
 
   // ============ REVIEW QUERIES ============
@@ -157,7 +160,7 @@ export class ReviewRepository {
     orderBy[sortBy] = sortOrder;
 
     const [reviews, total] = await Promise.all([
-      prisma.review.findMany({
+      this.prisma.review.findMany({
         where,
         skip,
         take: limit,
@@ -198,11 +201,11 @@ export class ReviewRepository {
           },
         },
       }),
-      prisma.review.count({ where }),
+      this.prisma.review.count({ where }),
     ]);
 
     return {
-      reviews,
+      reviews: reviews as any,
       pagination: {
         page,
         limit,
@@ -213,13 +216,14 @@ export class ReviewRepository {
   }
 
   async getReviewById(id: number): Promise<ReviewWithDetails | null> {
-    return await prisma.review.findUnique({
+    return await this.prisma.review.findUnique({
       where: { id },
       include: {
         user: {
           select: {
             id: true,
             name: true,
+            email: true,
             avatarUrl: true,
           },
         },
@@ -250,7 +254,7 @@ export class ReviewRepository {
           },
         },
       },
-    });
+    }) as any;
   }
 
   async getUserReviews(userId: number, page: number = 1, limit: number = 10): Promise<ReviewListResponseDto> {
@@ -277,10 +281,10 @@ export class ReviewRepository {
   
   async getReviewStats(propertyId: number): Promise<ReviewStatsResponse> {
     const [totalReviews, reviews] = await Promise.all([
-      prisma.review.count({
+      this.prisma.review.count({
         where: { propertyId },
       }),
-      prisma.review.findMany({
+      this.prisma.review.findMany({
         where: { propertyId },
         select: { rating: true },
       }),
@@ -305,7 +309,7 @@ export class ReviewRepository {
   // ============ REVIEW ELIGIBILITY ============
   
   async checkReviewEligibility(bookingId: number, userId: number): Promise<ReviewEligibility> {
-    const booking = await prisma.booking.findFirst({
+    const booking = await this.prisma.booking.findFirst({
       where: {
         id: bookingId,
         userId,
@@ -339,13 +343,13 @@ export class ReviewRepository {
           bookingNo: booking.bookingNo,
           status: booking.status,
           checkOut: booking.checkOut,
-          completedAt: booking.completedAt || undefined,
+          ...(booking.completedAt && { completedAt: booking.completedAt }),
         },
       };
     }
 
     // Check if review already exists
-    const existingReview = await prisma.review.findUnique({
+    const existingReview = await this.prisma.review.findUnique({
       where: { bookingId },
     });
 
@@ -358,7 +362,7 @@ export class ReviewRepository {
           bookingNo: booking.bookingNo,
           status: booking.status,
           checkOut: booking.checkOut,
-          completedAt: booking.completedAt || undefined,
+          ...(booking.completedAt && { completedAt: booking.completedAt }),
         },
       };
     }
@@ -370,7 +374,7 @@ export class ReviewRepository {
         bookingNo: booking.bookingNo,
         status: booking.status,
         checkOut: booking.checkOut,
-        completedAt: booking.completedAt || undefined,
+        ...(booking.completedAt && { completedAt: booking.completedAt }),
       },
     };
   }
@@ -378,7 +382,7 @@ export class ReviewRepository {
   // ============ REPLY ELIGIBILITY ============
   
   async checkReplyEligibility(reviewId: number, tenantId: number): Promise<ReplyEligibility> {
-    const review = await prisma.review.findUnique({
+    const review = await this.prisma.review.findUnique({
       where: { id: reviewId },
       include: {
         property: true,
@@ -442,7 +446,7 @@ export class ReviewRepository {
   // ============ REVIEW DELETION ============
   
   async deleteReview(id: number, userId: number): Promise<boolean> {
-    const review = await prisma.review.findFirst({
+    const review = await this.prisma.review.findFirst({
       where: {
         id,
         userId,
@@ -453,7 +457,7 @@ export class ReviewRepository {
       return false;
     }
 
-    await prisma.review.delete({
+    await this.prisma.review.delete({
       where: { id },
     });
 
@@ -463,7 +467,7 @@ export class ReviewRepository {
   // ============ REVIEW REPLY DELETION ============
   
   async deleteReviewReply(reviewId: number, tenantId: number): Promise<boolean> {
-    const review = await prisma.review.findFirst({
+    const review = await this.prisma.review.findFirst({
       where: {
         id: reviewId,
         property: {
@@ -479,7 +483,7 @@ export class ReviewRepository {
       return false;
     }
 
-    await prisma.reviewReply.delete({
+    await this.prisma.reviewReply.delete({
       where: { reviewId },
     });
 

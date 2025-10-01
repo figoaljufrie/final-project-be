@@ -61,6 +61,49 @@ export class CronService {
     }
   }
 
+  // Schedule booking completion after checkout
+  public scheduleBookingCompletion(
+    bookingId: number,
+    bookingNo: string,
+    checkOutDate: Date
+  ): void {
+    const taskKey = CronUtils.generateTaskId('booking-completion', bookingId);
+    this.cancelScheduledTask(taskKey);
+
+    // Complete booking 1 day after checkout
+    const completionDate = new Date(checkOutDate);
+    completionDate.setDate(completionDate.getDate() + 1);
+
+    if (CronUtils.isDateInPast(completionDate)) {
+      console.log(`Booking completion for booking ${bookingNo} is in the past, skipping`);
+      return;
+    }
+
+    const cronExpression = CronUtils.getCronExpression(completionDate);
+
+    console.log(`Scheduling booking completion for booking ${bookingNo} at ${CronUtils.formatDate(completionDate)}`);
+
+    try {
+      const task = cron.schedule(
+        cronExpression,
+        async () => {
+          try {
+            console.log(`Completing booking: ${bookingNo}`);
+            await this.completeBooking(bookingId);
+            this.cancelScheduledTask(taskKey);
+          } catch (error) {
+            console.error(`Error completing booking ${bookingNo}:`, error);
+          }
+        },
+        { timezone: "Asia/Jakarta" }
+      );
+
+      this.scheduledTasks.set(taskKey, task);
+    } catch (error) {
+      console.error(`Failed to schedule booking completion for booking ${bookingNo}:`, error);
+    }
+  }
+
   // Schedule check-in reminder for specific booking
   public scheduleCheckInReminder(
     bookingId: number,
@@ -218,6 +261,41 @@ export class CronService {
     }
 
     console.log(`Successfully auto-cancelled booking: ${booking.bookingNo}`);
+  }
+
+  // Complete booking after checkout
+  private async completeBooking(bookingId: number): Promise<void> {
+    try {
+      const booking = await this.cronRepository.getBookingById(bookingId);
+      
+      if (!booking) {
+        console.error(`Booking ${bookingId} not found for completion`);
+        return;
+      }
+
+      if (booking.status !== BookingStatus.confirmed) {
+        console.log(`Booking ${booking.bookingNo} is not confirmed, skipping completion`);
+        return;
+      }
+
+      // Check if checkout date has passed
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const checkoutDate = new Date(booking.checkOut);
+      checkoutDate.setHours(0, 0, 0, 0);
+
+      if (today < checkoutDate) {
+        console.log(`Booking ${booking.bookingNo} checkout date has not passed yet, skipping completion`);
+        return;
+      }
+
+      // Complete the booking
+      await this.cronRepository.completeBooking(bookingId);
+      console.log(`Booking ${booking.bookingNo} completed successfully`);
+      
+    } catch (error) {
+      console.error(`Error completing booking ${bookingId}:`, error);
+    }
   }
 
   private async sendCheckInReminder(bookingId: number): Promise<void> {

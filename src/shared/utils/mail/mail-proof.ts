@@ -25,13 +25,17 @@ export interface BookingEmailData {
   propertyAddress?: string;
   contactPerson?: string;
   contactNumber?: string;
-  paymentDeadline?: string;
-  timeRemaining?: string;
+  paymentDeadline?: string | undefined;
+  timeRemaining?: string | undefined;
   
   // URLs
   dashboardUrl?: string;
   bookingUrl?: string;
+  bookingDetailUrl?: string;
   paymentUrl?: string;
+  tenantDashboardUrl?: string;
+  uploadPaymentProofUrl?: string;
+  midtransRedirectUrl?: string;
 }
 
 export class MailProofService {
@@ -184,6 +188,73 @@ export class MailProofService {
         data
       );
     }
+  }
+
+  // 9. Manual transfer payment reminder (to user) - FEATURE 2 REQUIREMENT
+  async sendManualTransferReminderEmail(data: BookingEmailData): Promise<void> {
+    // Check if payment deadline has passed
+    if (data.paymentDeadline) {
+      const deadline = new Date(data.paymentDeadline);
+      const now = new Date();
+      
+      if (now > deadline) {
+        console.log(`Payment deadline has passed for booking ${data.bookingNo}, skipping reminder email`);
+        return;
+      }
+    }
+
+    await this.sendEmail(
+      data.userEmail,
+      `Payment Reminder - Manual Transfer - Booking ${data.bookingNo}`,
+      'manual_transfer_payment_reminder',
+      data
+    );
+  }
+
+  // 10. Payment gateway reminder (to user) - FEATURE 2 REQUIREMENT
+  async sendPaymentGatewayReminderEmail(data: BookingEmailData): Promise<void> {
+    // Check if payment deadline has passed
+    if (data.paymentDeadline) {
+      const deadline = new Date(data.paymentDeadline);
+      const now = new Date();
+      
+      if (now > deadline) {
+        console.log(`Payment deadline has passed for booking ${data.bookingNo}, skipping reminder email`);
+        return;
+      }
+    }
+
+    await this.sendEmail(
+      data.userEmail,
+      `Payment Reminder - Payment Gateway - Booking ${data.bookingNo}`,
+      'payment_gateway_payment_reminder',
+      data
+    );
+  }
+
+  // 11. User payment confirmation (to user) - FEATURE 2 REQUIREMENT
+  async sendUserPaymentConfirmationEmail(data: BookingEmailData): Promise<void> {
+    await this.sendEmail(
+      data.userEmail,
+      `Payment Confirmed - Booking ${data.bookingNo}`,
+      'user_payment_confirmation',
+      data
+    );
+  }
+
+  // 12. Tenant new payment notification (to tenant) - FEATURE 2 REQUIREMENT
+  async sendTenantNewPaymentNotificationEmail(data: BookingEmailData): Promise<void> {
+    if (!data.tenantEmail) {
+      console.log(`No tenant email provided for booking ${data.bookingNo}, skipping tenant notification`);
+      return;
+    }
+
+    await this.sendEmail(
+      data.tenantEmail,
+      `New Payment Received - Booking ${data.bookingNo}`,
+      'tenant_new_payment_notification',
+      data
+    );
   }
 }
 
