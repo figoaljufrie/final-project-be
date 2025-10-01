@@ -114,12 +114,14 @@ export class TenantBookingRepository {
             room: {
               include: {
                 property: {
-                  select: {
-                    id: true,
-                    name: true,
-                    address: true,
-                    city: true,
-                    tenantId: true,
+                  include: {
+                    tenant: {
+                      select: {
+                        id: true,
+                        name: true,
+                        email: true,
+                      },
+                    },
                   },
                 },
               },

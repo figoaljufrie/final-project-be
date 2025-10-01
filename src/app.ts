@@ -10,6 +10,7 @@ import { OAuthRouter } from "./modules/oAuth/routers/oAuth-router";
 import { TenantBookingRoutes } from "./modules/tenant/tenant-booking-status/routers/tenant-booking-status.routes";
 import { PaymentRoutes } from "./modules/payment/routers/payment.routes";
 import { ReviewRoutes } from "./modules/review/routers/review.routes";
+import { ReportRoutes } from './modules/report/routers/report.routes';
 import { prisma } from "./shared/utils/prisma";
 
 export class App {
@@ -47,11 +48,14 @@ export class App {
     // tenant booking routes
     this.app.use("/api/tenant/bookings", new TenantBookingRoutes().getRouter());
 
-    // payment routes (including webhook)
+    // payment gateway route (including webhook)
     this.app.use("/api/payment", new PaymentRoutes().router);
 
     // review routes
     this.app.use("/api/reviews", new ReviewRoutes().getRouter());
+
+    // report routes
+    this.app.use("/api/reports", new ReportRoutes().getRouter());
 
     //User & Auth:
     this.app.use("/api", new UserRouter().getRouter());

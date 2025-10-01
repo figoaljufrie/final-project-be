@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { PrismaClient } from '../../../generated/prisma';
 import { ReviewController } from '../controllers/review.controller';
 import { ReviewValidation } from '../validation/review.validation';
 import { AuthMiddleware } from '../../../shared/middleware/auth-middleware';
@@ -8,14 +9,10 @@ import { $Enums } from '../../../generated/prisma';
 export class ReviewRoutes {
   private router: Router;
   private reviewController: ReviewController;
-  private authMiddleware: AuthMiddleware;
-  private rbacMiddleware: RBACMiddleware;
 
   constructor() {
     this.router = Router();
-    this.reviewController = new ReviewController();
-    this.authMiddleware = new AuthMiddleware();
-    this.rbacMiddleware = new RBACMiddleware();
+    this.reviewController = new ReviewController(new PrismaClient());
     this.initializeRoutes();
   }
 
@@ -24,8 +21,8 @@ export class ReviewRoutes {
     
     this.router.post(
       '/',
-      this.authMiddleware.authenticate,
-      this.rbacMiddleware.checkRole([$Enums.UserRole.user]),
+      new AuthMiddleware().authenticate,
+      new RBACMiddleware().checkRole([$Enums.UserRole.user]),
       ReviewValidation.createReview,
       ReviewValidation.handleValidationErrors,
       this.reviewController.createReview
@@ -35,8 +32,8 @@ export class ReviewRoutes {
     
     this.router.post(
       '/:reviewId/reply',
-      this.authMiddleware.authenticate,
-      this.rbacMiddleware.checkRole([$Enums.UserRole.tenant]),
+      new AuthMiddleware().authenticate,
+      new RBACMiddleware().checkRole([$Enums.UserRole.tenant]),
       ReviewValidation.createReviewReply,
       ReviewValidation.handleValidationErrors,
       this.reviewController.createReviewReply
@@ -63,8 +60,8 @@ export class ReviewRoutes {
     // Get user's reviews - User only
     this.router.get(
       '/user/my-reviews',
-      this.authMiddleware.authenticate,
-      this.rbacMiddleware.checkRole([$Enums.UserRole.user]),
+      new AuthMiddleware().authenticate,
+      new RBACMiddleware().checkRole([$Enums.UserRole.user]),
       ReviewValidation.getUserReviews,
       ReviewValidation.handleValidationErrors,
       this.reviewController.getUserReviews
@@ -93,8 +90,8 @@ export class ReviewRoutes {
     // Check if user can review a booking - User only
     this.router.get(
       '/eligibility/booking/:bookingId',
-      this.authMiddleware.authenticate,
-      this.rbacMiddleware.checkRole([$Enums.UserRole.user]),
+      new AuthMiddleware().authenticate,
+      new RBACMiddleware().checkRole([$Enums.UserRole.user]),
       ReviewValidation.checkReviewEligibility,
       ReviewValidation.handleValidationErrors,
       this.reviewController.checkReviewEligibility
@@ -103,8 +100,8 @@ export class ReviewRoutes {
     // Check if tenant can reply to review - Tenant only
     this.router.get(
       '/:reviewId/eligibility/reply',
-      this.authMiddleware.authenticate,
-      this.rbacMiddleware.checkRole([$Enums.UserRole.tenant]),
+      new AuthMiddleware().authenticate,
+      new RBACMiddleware().checkRole([$Enums.UserRole.tenant]),
       ReviewValidation.checkReplyEligibility,
       ReviewValidation.handleValidationErrors,
       this.reviewController.checkReplyEligibility
@@ -115,8 +112,8 @@ export class ReviewRoutes {
     // Delete user's review - User only
     this.router.delete(
       '/:reviewId',
-      this.authMiddleware.authenticate,
-      this.rbacMiddleware.checkRole([$Enums.UserRole.user]),
+      new AuthMiddleware().authenticate,
+      new RBACMiddleware().checkRole([$Enums.UserRole.user]),
       ReviewValidation.reviewIdParam,
       ReviewValidation.handleValidationErrors,
       this.reviewController.deleteReview
@@ -125,8 +122,8 @@ export class ReviewRoutes {
     // Delete tenant's reply - Tenant only
     this.router.delete(
       '/:reviewId/reply',
-      this.authMiddleware.authenticate,
-      this.rbacMiddleware.checkRole([$Enums.UserRole.tenant]),
+      new AuthMiddleware().authenticate,
+      new RBACMiddleware().checkRole([$Enums.UserRole.tenant]),
       ReviewValidation.reviewIdParam,
       ReviewValidation.handleValidationErrors,
       this.reviewController.deleteReviewReply

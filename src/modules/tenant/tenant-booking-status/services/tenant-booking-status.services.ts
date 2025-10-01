@@ -59,11 +59,12 @@ export class TenantBookingService {
     // Confirm payment
     const confirmedBooking = await this.tenantBookingRepository.confirmPayment(bookingId);
     
-    // Cancel auto-cancel task and schedule check-in reminder
+    // Cancel auto-cancel task and schedule check-in reminder and booking completion
     this.cronService.cancelBookingTasks(bookingId);
     this.cronService.scheduleCheckInReminder(bookingId, booking.bookingNo, booking.checkIn);
+    this.cronService.scheduleBookingCompletion(bookingId, booking.bookingNo, booking.checkOut);
     
-    // Send payment confirmed email to user
+    // Send payment confirmed email to user and notification to tenant
     try {
       const emailData: BookingEmailData = {
         userName: booking.user?.name || 'User',
@@ -73,12 +74,25 @@ export class TenantBookingService {
         checkIn: booking.checkIn.toISOString().split('T')[0] || '',
         checkOut: booking.checkOut.toISOString().split('T')[0] || '',
         totalAmount: booking.totalAmount.toLocaleString('id-ID'),
+        paymentMethod: 'manual_transfer',
         confirmationNotes: 'Payment has been confirmed by property owner',
         bookingUrl: `${process.env.FRONTEND_URL}/bookings/${booking.id}`,
+        bookingDetailUrl: `${process.env.FRONTEND_URL}/bookings/${booking.id}`,
+        // Tenant data
+        tenantName: booking.items[0]?.room?.property?.tenant?.name || 'Property Owner',
+        tenantEmail: booking.items[0]?.room?.property?.tenant?.email || '',
+        tenantDashboardUrl: `${process.env.FRONTEND_URL}/tenant/dashboard`,
       };
-      await mailProofService.sendPaymentConfirmedEmail(emailData);
+      
+      // Send confirmation email to user
+      await mailProofService.sendUserPaymentConfirmationEmail(emailData);
+      
+      // Send notification email to tenant
+      await mailProofService.sendTenantNewPaymentNotificationEmail(emailData);
+      
+      console.log(`Sent payment confirmation emails for manual transfer booking: ${booking.bookingNo}`);
     } catch (error) {
-      console.error('Failed to send payment confirmed email:', error);
+      console.error('Failed to send payment confirmed emails:', error);
     }
     
     return confirmedBooking;
@@ -197,16 +211,35 @@ export class TenantBookingService {
       if (reminderType === 'checkin') {
         await mailProofService.sendCheckInReminderEmail(emailData);
       } else if (reminderType === 'payment') {
-        // Calculate time remaining
+        // Check if payment deadline has passed
         const now = new Date();
         const deadline = booking.paymentDeadline;
-        const timeRemaining = deadline ? Math.ceil((deadline.getTime() - now.getTime()) / (1000 * 60 * 60)) : 0;
         
-        emailData.paymentDeadline = deadline?.toISOString().split('T')[0] || '';
+        if (!deadline || now > deadline) {
+          console.log(`Payment deadline has passed for booking ${booking.bookingNo}, skipping reminder email`);
+          return { message: 'Payment deadline has passed, reminder not sent' };
+        }
+        
+        // Calculate time remaining
+        const timeRemaining = Math.ceil((deadline.getTime() - now.getTime()) / (1000 * 60 * 60));
+        
+        emailData.paymentDeadline = deadline.toISOString().split('T')[0];
         emailData.timeRemaining = `${timeRemaining} hours`;
-        emailData.paymentUrl = `${process.env.FRONTEND_URL}/bookings/${booking.id}/payment`;
+        emailData.paymentMethod = booking.paymentMethod || 'manual_transfer';
         
-        await mailProofService.sendAutoCancelReminderEmail(emailData);
+        // Send different reminder based on payment method
+        if (booking.paymentMethod === 'manual_transfer') {
+          emailData.uploadPaymentProofUrl = `${process.env.FRONTEND_URL}/bookings/${booking.id}/upload-payment`;
+          await mailProofService.sendManualTransferReminderEmail(emailData);
+        } else if (booking.paymentMethod === 'payment_gateway') {
+          emailData.midtransRedirectUrl = booking.midtransToken ? 
+            `https://app.sandbox.midtrans.com/snap/v4/redirection/${booking.midtransToken}` : 
+            `${process.env.FRONTEND_URL}/bookings/${booking.id}/payment`;
+          await mailProofService.sendPaymentGatewayReminderEmail(emailData);
+        } else {
+          // Fallback to generic reminder
+          await mailProofService.sendAutoCancelReminderEmail(emailData);
+        }
       }
     } catch (error) {
       console.error('Failed to send reminder email:', error);

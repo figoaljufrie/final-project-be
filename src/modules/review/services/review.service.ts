@@ -1,3 +1,4 @@
+import { PrismaClient } from '../../../generated/prisma';
 import { ReviewRepository } from '../repository/review.repository';
 import { ApiError } from '../../../shared/utils/api-error';
 import { 
@@ -18,8 +19,8 @@ import {
 export class ReviewService {
   private reviewRepository: ReviewRepository;
 
-  constructor() {
-    this.reviewRepository = new ReviewRepository();
+  constructor(private prisma: PrismaClient) {
+    this.reviewRepository = new ReviewRepository(this.prisma);
   }
 
   // ============ REVIEW CREATION ============
@@ -32,9 +33,7 @@ export class ReviewService {
       throw new ApiError(eligibility.reason || 'Cannot create review', 400);
     }
 
-    // Get booking details to set propertyId
-    const booking = await this.reviewRepository.getReviewById(0); // This will be fixed in repository
-    // For now, we'll get propertyId from booking in a different way
+    // PropertyId will be extracted from booking in repository
     
     // Create review
     const review = await this.reviewRepository.createReview({
@@ -71,19 +70,20 @@ export class ReviewService {
   // ============ REVIEW QUERIES ============
   
   async getReviews(filters: GetReviewsRequest): Promise<ReviewListResponseDto> {
-    const reviewFilters: ReviewFilter = {
-      propertyId: filters.propertyId,
-      userId: filters.userId,
-      rating: filters.rating,
-      hasComment: filters.hasComment,
-      hasReply: filters.hasReply,
-      startDate: filters.startDate,
-      endDate: filters.endDate,
-      page: filters.page || 1,
-      limit: filters.limit || 10,
-      sortBy: filters.sortBy || 'createdAt',
-      sortOrder: filters.sortOrder || 'desc',
-    };
+    const reviewFilters: ReviewFilter = {};
+    
+    if (filters.propertyId) reviewFilters.propertyId = filters.propertyId;
+    if (filters.userId) reviewFilters.userId = filters.userId;
+    if (filters.rating) reviewFilters.rating = filters.rating;
+    if (filters.hasComment !== undefined) reviewFilters.hasComment = filters.hasComment;
+    if (filters.hasReply !== undefined) reviewFilters.hasReply = filters.hasReply;
+    if (filters.startDate) reviewFilters.startDate = filters.startDate;
+    if (filters.endDate) reviewFilters.endDate = filters.endDate;
+    
+    reviewFilters.page = filters.page || 1;
+    reviewFilters.limit = filters.limit || 10;
+    reviewFilters.sortBy = filters.sortBy || 'createdAt';
+    reviewFilters.sortOrder = filters.sortOrder || 'desc';
 
     return await this.reviewRepository.getReviews(reviewFilters);
   }
@@ -146,21 +146,7 @@ export class ReviewService {
 
   // ============ BUSINESS LOGIC VALIDATIONS ============
   
-  private validateReviewData(data: CreateReviewRequest): void {
-    if (data.rating < 1 || data.rating > 5) {
-      throw new ApiError('Rating must be between 1 and 5', 400);
-    }
-
-    if (data.comment && (data.comment.length < 10 || data.comment.length > 1000)) {
-      throw new ApiError('Comment must be between 10 and 1000 characters', 400);
-    }
-  }
-
-  private validateReplyData(data: CreateReviewReplyRequest): void {
-    if (data.content.length < 10 || data.content.length > 500) {
-      throw new ApiError('Reply content must be between 10 and 500 characters', 400);
-    }
-  }
+  // Note: Input validation is handled by express-validator in controller layer
 
   // ============ REVIEW ANALYTICS ============
   
@@ -172,7 +158,7 @@ export class ReviewService {
       sortOrder: 'desc',
     });
 
-    return result.reviews;
+    return result.reviews as ReviewWithDetails[];
   }
 
   async getTopRatedProperties(limit: number = 10): Promise<any[]> {

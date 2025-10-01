@@ -14,6 +14,7 @@ export interface ReviewWithDetails {
   user: {
     id: number;
     name: string;
+    email: string;
     avatarUrl?: string;
   };
   property: {
@@ -42,6 +43,7 @@ export interface ReviewReplyWithDetails {
   tenant: {
     id: number;
     name: string;
+    email: string;
     avatarUrl?: string;
   };
 }
