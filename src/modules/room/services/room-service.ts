@@ -1,73 +1,147 @@
+import { Prisma } from "../../../generated/prisma";
+import { prisma } from "../../../shared/utils/prisma";
 import { ApiError } from "../../../shared/utils/api-error";
-import { Roomrepository } from "../repository/room-repository";
+import { RoomRepository } from "../repository/room-repository";
+import { PropertyRepository } from "../../property/repository/property-repository";
+import { ImageRepository } from "../../images/repository/image-repository";
+// 1. UPDATED IMPORT: Use AvailabilityRepository instead of PricingRepository
+import { AvailabilityRepository } from "../../pricing/repository/availability-repository";
+import { CloudinaryUtils } from "../../../shared/utils/cloudinary/cloudinary";
+import { CreateRoomDto, RoomCreateTxDto } from "../dto/room-dto";
+
+interface UploadedImageResult {
+  url: string;
+  publicId: string;
+  altText: string;
+  isPrimary: boolean;
+  order: number;
+}
 
 export class RoomService {
-  private roomRepository: Roomrepository;
+  private roomRepository = new RoomRepository();
+  private propertyRepository = new PropertyRepository();
+  private imageRepository = new ImageRepository();
+  // 1. UPDATED PROPERTY NAME: Use availabilityRepository
+  private availabilityRepository = new AvailabilityRepository();
+  private cloudinaryUtils = new CloudinaryUtils();
 
-  constructor() {
-    this.roomRepository = new Roomrepository();
-  }
+  public async create(tenantId: number, payload: CreateRoomDto) {
+    const property = await this.propertyRepository.findById(payload.propertyId);
+    if (!property || property.tenantId !== tenantId) {
+      throw new ApiError("Property not found or access denied.", 403);
+    }
 
-  public async createRoom(tenantId: number, payload: any) {
-    const property = await (
-      await import("../../../modules/property/repository/property-repository")
-    ).PropertyRepository.prototype.findById.call(
-      new (
-        await import("../../../modules/property/repository/property-repository")
-      ).PropertyRepository(),
-      payload.propertyId
-    );
-    if (!property) throw new ApiError("Property not found", 404);
-    if (property.tenantId !== tenantId)
-      throw new ApiError("Not Authorized", 403);
+    const totalUnits = payload.totalUnits ?? 1;
 
-    return this.roomRepository.create({
+    let uploadedImages: UploadedImageResult[] = [];
+    let uploadPublicIds: string[] = [];
+
+    try {
+      const imageUploadPromises = (payload.images || []).map(async (img) => {
+        const result = await this.cloudinaryUtils.upload(img.file);
+
+        const uploadedImage: UploadedImageResult = {
+          url: result.secure_url,
+          publicId: result.public_id,
+          altText: img.altText,
+          isPrimary: img.isPrimary,
+          order: img.order,
+        };
+        uploadPublicIds.push(result.public_id);
+        return uploadedImage;
+      });
+
+      uploadedImages = await Promise.all(imageUploadPromises);
+    } catch (uploadError) {
+      throw new ApiError(
+        "Failed to upload one or more images to cloud storage.",
+        500
+      );
+    }
+
+    const roomData: RoomCreateTxDto = {
       propertyId: payload.propertyId,
       name: payload.name,
       capacity: payload.capacity,
       basePrice: payload.basePrice,
       description: payload.description ?? null,
-      totalUnits: payload.totalUnits ?? 1,
-    } as any);
+      totalUnits: totalUnits,
+    };
+
+    try {
+      const newRoom = await prisma.$transaction(
+        async (tx) => {
+          const createdRoom = await this.roomRepository.createWithTx(
+            roomData,
+            tx
+          );
+
+          if (uploadedImages.length > 0) {
+            await this.imageRepository.createManyForRoomWithTx(
+              createdRoom.id,
+              uploadedImages,
+              tx
+            );
+          }
+
+          // 2. UPDATED CALL: Use the new availabilityRepository
+          await this.availabilityRepository.seedAvailabilityWithTx(
+            createdRoom.id,
+            createdRoom.totalUnits,
+            tx
+          );
+
+          return createdRoom;
+        },
+        { timeout: 10000 }
+      );
+
+      return newRoom;
+    } catch (dbError) {
+      console.error(
+        "Transactional Room Creation Failed. Initiating Cloudinary cleanup."
+      );
+
+      await Promise.allSettled(
+        uploadPublicIds.map((publicId) =>
+          this.cloudinaryUtils.destroy(publicId)
+        )
+      );
+
+      throw new ApiError(
+        "Failed to save room details to database. Cloud files cleaned up.",
+        500
+      );
+    }
   }
 
-  public async updateRoom(tenantId: number, roomId: number, payload: any) {
+  public async updateRoom(
+    roomId: number,
+    propertyId: number,
+    data: Partial<Prisma.RoomUpdateInput>
+  ) {
     const room = await this.roomRepository.findById(roomId);
-    if (!room) throw new ApiError("Room not found", 404);
-    const propertyPromise = (
-      await import("../../../modules/property/repository/property-repository")
-    ).PropertyRepository.prototype.findById.call(
-      new (
-        await import("../../../modules/property/repository/property-repository")
-      ).PropertyRepository(),
-      room.propertyId
-    );
-    const property = await propertyPromise;
-    if (!property) throw new ApiError("Property not found", 404);
-    if (property.tenantId !== tenantId)
-      throw new ApiError("Not Authorized", 403);
-    return this.roomRepository.update(roomId, payload);
-  }
-  public async deleteRoom(tenantId: number, roomId: number) {
-    const room = await this.roomRepository.findById(roomId);
-    if (!room) throw new ApiError("Room not found", 404);
+    if (!room) throw new ApiError("Room did not exist", 404);
 
-    const property = await (
-      await import("../../property/repository/property-repository")
-    ).PropertyRepository.prototype.findById.call(
-      new (
-        await import("../../property/repository/property-repository")
-      ).PropertyRepository(),
-      room.propertyId
-    );
-    if (!property) throw new ApiError("Property not found", 404);
-    if (property.tenantId !== tenantId)
-      throw new ApiError("Not authorized", 403);
+    if (room.propertyId !== propertyId) {
+      throw new ApiError("Room does not belong to specified Property.", 400);
+    }
+
+    return this.roomRepository.update(roomId, data);
+  }
+
+  public async deleteRoom(roomId: number, propertyId: number) {
+    const room = await this.roomRepository.findById(roomId);
+    if (!room) throw new ApiError("Room does not exist", 404);
+
+    if (room.propertyId !== propertyId) {
+      throw new ApiError("Room does not belong to specified property", 400);
+    }
 
     return this.roomRepository.softDelete(roomId);
   }
 
-  public async getRoomsByProperty(properyId: number) {
-    return this.roomRepository.findByProperty(properyId);
+  public async getRoomsByProperty(propertyId: number) {
+    return this.roomRepository.findByProperty(propertyId);
   }
 }

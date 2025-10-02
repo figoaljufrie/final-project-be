@@ -1,31 +1,79 @@
-import { $Enums } from "../../../generated/prisma";
+import { Property, $Enums } from "../../../generated/prisma";
 
-export interface CreateRoomInput {
-  name: string;
-  capacity: number;
-  basePrice: number;
-  description?: string | null;
-  totalUnits?: number;
-  availability?: {
-    date: string; // YYYY-MM-DD
-    isAvailable?: boolean;
-    customPrice?: number | null;
-    priceModifier?: number | null;
-    reason?: string | null;
-  }[];
+export enum PriceSort {
+  ASC = "asc",
+  DESC = "desc",
 }
 
-export interface CreatePropertyDTO {
-  category: $Enums.PropertyCategory;
+export enum PropertySortField {
+  NAME = "name",
+  CREATED_AT = "createdAt",
+  PRICE = "price",
+}
+
+// DTO for data passed to repository's create function
+export interface PropertyCreateRepoDto {
   name: string;
+  slug: string;
+  description: string;
+  category: $Enums.PropertyCategory;
+  tenant: {
+    connect: { id: number };
+  };
+}
+
+// DTO for data received by service's create method
+export interface CreatePropertyDto {
+  name: string;
+  description: string;
+  category: string;
+}
+
+// DTO for data passed to repository's update function
+export interface PropertyUpdateRepoDto {
+  name?: string;
   slug?: string;
-  description?: string | null;
-  address?: string | null;
-  city?: string | null;
-  province?: string | null;
-  latitude?: number | null;
-  longitude?: number | null;
-  published?: boolean;
-  images?: { url: string; altText?: string | null; isPrimary?: boolean }[];
-  rooms?: CreateRoomInput[];
+  description?: string;
+  category?: $Enums.PropertyCategory;
+  city?: string;
+  address?: string;
+}
+
+// DTO for data received by service's update method
+export interface UpdatePropertyDto {
+  name?: string;
+  description?: string;
+  category?: string;
+  city?: string;
+  address?: string;
+}
+
+export interface PropertySearchQueryDto {
+  page?: number | undefined;
+  limit?: number | undefined;
+  name?: string | undefined;
+  category?: $Enums.PropertyCategory | undefined;
+  sortBy?: PropertySortField | undefined;
+  sortOrder?: PriceSort | undefined;
+  checkInDate?: Date | undefined;
+  checkOutDate?: Date | undefined;
+}
+
+export interface PropertySearchRepoParamsDto {
+  whereClause: any;
+  skip: number;
+  take: number;
+  sortBy?: "name" | "createdAt";
+  sortOrder?: "asc" | "desc";
+}
+
+interface RoomForPricing {
+  id: number;
+  basePrice: number;
+}
+
+export interface PropertyListItemDto extends Omit<Property, "rooms"> {
+  minBasePrice: number | null;
+  images: { url: string }[];
+  rooms: RoomForPricing[];
 }

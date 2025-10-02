@@ -1,19 +1,31 @@
 import { Prisma, Room } from "../../../generated/prisma";
 import { prisma } from "../../../shared/utils/prisma";
+import { RoomCreateTxDto } from "../dto/room-dto";
 
-export class Roomrepository {
-  public async create(data: Prisma.RoomCreateInput) {
-    return prisma.room.create({
-      data,
+export class RoomRepository {
+  public async findRoomsByPropertyIds(propertyIds: number[]) {
+    return prisma.room.findMany({
+      where: {
+        propertyId: { in: propertyIds },
+        deletedAt: null,
+      },
     });
   }
 
   public async createWithTx(
-    tx: Prisma.TransactionClient,
-    data: Prisma.RoomCreateInput
-  ) {
+    data: RoomCreateTxDto,
+    tx: Prisma.TransactionClient
+  ): Promise<Room> {
+    const totalUnits = data.totalUnits ?? 1;
     return tx.room.create({
-      data,
+      data: {
+        propertyId: data.propertyId,
+        name: data.name,
+        capacity: data.capacity,
+        basePrice: data.basePrice,
+        description: data.description ?? null,
+        totalUnits: totalUnits,
+      },
     });
   }
 
@@ -28,6 +40,13 @@ export class Roomrepository {
     return prisma.room.findFirst({
       where: { id, deletedAt: null },
       include: { availability: true, images: true },
+    });
+  }
+
+  public async findPropertyId(id: number) {
+    return prisma.room.findFirst({
+      where: { id, deletedAt: null },
+      select: { propertyId: true },
     });
   }
 
