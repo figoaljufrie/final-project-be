@@ -1,8 +1,20 @@
-// src/modules/property/controllers/property-controller.ts
 import { Request, Response } from "express";
-import { PropertyService } from "../services/property-service";
+import { $Enums } from "../../../generated/prisma";
 import { errHandle } from "../../../shared/helpers/err-handler";
 import { succHandle } from "../../../shared/helpers/succ-handler";
+import { PropertyService } from "../services/property-service";
+import {
+  PriceSort,
+  PropertySortField,
+  PropertySearchQueryDto,
+  CreatePropertyDto,
+} from "../dto/property-dto"; // Corrected DTO path
+import {
+  safeNumber,
+  safeString,
+  safeDate,
+  validateEnum,
+} from "../../../shared/helpers/property/query-parser"; // New shared helper
 
 export class PropertyController {
   private propertyService = new PropertyService();
@@ -10,93 +22,158 @@ export class PropertyController {
   public create = async (req: Request, res: Response) => {
     try {
       const tenantId = (req as any).user.id;
-      const result = await this.propertyService.createProperty(tenantId, req.body);
-      succHandle(res, "Property created successfully", result, 201);
-    } catch (err) {
-      errHandle(res, "Failed to create property", 400, (err as Error).message);
+      const payload: CreatePropertyDto = req.body;
+      const result = await this.propertyService.createProperty(
+        tenantId,
+        payload
+      );
+      succHandle(res, "Property created", result, 201);
+    } catch (error) {
+      errHandle(
+        res,
+        "Failed to create property",
+        400,
+        (error as Error).message
+      );
     }
   };
 
   public update = async (req: Request, res: Response) => {
     try {
       const tenantId = (req as any).user.id;
-      const id = Number(req.params.id);
-      const result = await this.propertyService.updateProperty(tenantId, id, req.body);
-      succHandle(res, "Property updated successfully", result, 200);
-    } catch (err) {
-      errHandle(res, "Failed to update property", 400, (err as Error).message);
-    }
-  };
-
-  public publish = async (req: Request, res: Response) => {
-    try {
-      const tenantId = (req as any).user.id;
-      const id = Number(req.params.id);
-      const { publish } = req.body;
-      const result = await this.propertyService.publishProperty(tenantId, id, !!publish);
-      succHandle(res, "Property publish state updated", result, 200);
-    } catch (err) {
-      errHandle(res, "Failed to publish property", 400, (err as Error).message);
-    }
-  };
-
-  public delete = async (req: Request, res: Response) => {
-    try {
-      const tenantId = (req as any).user.id;
-      const id = Number(req.params.id);
-      const result = await this.propertyService.deleteProperty(tenantId, id);
-      succHandle(res, "Property deleted successfully", result, 200);
-    } catch (err) {
-      errHandle(res, "Failed to delete property", 400, (err as Error).message);
-    }
-  };
-
-  public getById = async (req: Request, res: Response) => {
-    try {
-      const id = Number(req.params.id);
-      const date = (req.query.date as string) || null;
-      const result = await this.propertyService.getPropertyById(id, date);
-      succHandle(res, "Property retrieved", result, 200);
-    } catch (err) {
-      errHandle(res, "Failed to get property", 404, (err as Error).message);
+      const propertyId = Number(req.params.id);
+      const result = await this.propertyService.updateProperty(
+        tenantId,
+        propertyId,
+        req.body
+      );
+      succHandle(res, "Property updated", result, 200);
+    } catch (error) {
+      errHandle(
+        res,
+        "Failed to update property",
+        400,
+        (error as Error).message
+      );
     }
   };
 
   public search = async (req: Request, res: Response) => {
     try {
-      const { city, category, q, page, limit, sort, start } = req.query as any;
-      const searchParams: {
-        city?: string;
-        category?: string;
-        q?: string;
-        page?: number;
-        limit?: number;
-        sort?: string;
-        start?: string | null;
-      } = {
-        city: city || undefined,
-        category: category || undefined,
-        q: q || undefined,
-        sort: sort || undefined,
-        start: start ?? null,
-      };
-      if (page !== undefined) searchParams.page = Number(page);
-      if (limit !== undefined) searchParams.limit = Number(limit);
+      // 1. Extract tenantId from the request user object
+      const tenantId = (req as any).user.id;
 
-      const result = await this.propertyService.search(searchParams);
-      succHandle(res, "Search results", result, 200);
-    } catch (err) {
-      errHandle(res, "Failed to search properties", 400, (err as Error).message);
+      const {
+        page,
+        limit,
+        checkInDate,
+        checkOutDate,
+        name,
+        category,
+        sortBy,
+        sortOrder,
+      } = req.query;
+
+      const categoryValue = validateEnum(category, $Enums.PropertyCategory);
+      const sortByValue = validateEnum(sortBy, PropertySortField);
+      const sortOrderValue = validateEnum(sortOrder, PriceSort);
+
+      const params: PropertySearchQueryDto = {
+        page: safeNumber(page),
+        limit: safeNumber(limit),
+        checkInDate: safeDate(checkInDate),
+        checkOutDate: safeDate(checkOutDate),
+        name: safeString(name),
+        category: categoryValue,
+        sortBy: sortByValue,
+        sortOrder: sortOrderValue,
+      };
+
+      // 2. Pass tenantId as the first argument to searchProperties
+      const result = await this.propertyService.searchProperties(
+        tenantId,
+        params
+      );
+      succHandle(res, "Properties retrieved", result, 200);
+    } catch (error) {
+      errHandle(
+        res,
+        "Failed to search properties",
+        400,
+        (error as Error).message
+      );
     }
   };
 
-  public listTenant = async (req: Request, res: Response) => {
+  public getDetails = async (req: Request, res: Response) => {
     try {
-      const tenantId = (req as any).user.id;
-      const result = await this.propertyService.listTenantProperties(tenantId);
-      succHandle(res, "Tenant properties retrieved", result, 200);
-    } catch (err) {
-      errHandle(res, "Failed to get tenant properties", 400, (err as Error).message);
+      const propertyId = safeNumber(req.params.id);
+      if (!propertyId) throw new Error("Invalid property ID");
+
+      const checkInDate = safeDate(req.query.checkInDate);
+      const checkOutDate = safeDate(req.query.checkOutDate);
+
+      const result = await this.propertyService.getPropertyDetails(
+        propertyId,
+        checkInDate,
+        checkOutDate
+      );
+      succHandle(res, "Property details retrieved", result, 200);
+    } catch (error) {
+      errHandle(
+        res,
+        "Failed to get property details",
+        400,
+        (error as Error).message
+      );
+    }
+  };
+
+  public getCalendar = async (req: Request, res: Response) => {
+    try {
+      const propertyId = safeNumber(req.params.id);
+      if (!propertyId) throw new Error("Invalid property ID");
+
+      const currentMonth = new Date().getMonth() + 1;
+      const currentYear = new Date().getFullYear();
+
+      const month = safeNumber(req.query.month) || currentMonth;
+      const year = safeNumber(req.query.year) || currentYear;
+
+      if (month < 1 || month > 12) {
+        return errHandle(res, "Invalid month or year parameters.", 400);
+      }
+
+      const result = await this.propertyService.getPropertyCalendar(
+        propertyId,
+        month,
+        year
+      );
+      succHandle(res, "Property calendar retrieved", result, 200);
+    } catch (error) {
+      errHandle(
+        res,
+        "Failed to get property calendar",
+        400,
+        (error as Error).message
+      );
+    }
+  };
+
+  public delete = async (req: Request, res: Response) => {
+    try {
+      const propertyId = safeNumber(req.params.id);
+      if (!propertyId) throw new Error("Invalid property ID");
+
+      await this.propertyService.softDeleteProperty(propertyId);
+      succHandle(res, "Property deleted successfully", null, 204);
+    } catch (error) {
+      errHandle(
+        res,
+        "Failed to delete property",
+        400,
+        (error as Error).message
+      );
     }
   };
 }

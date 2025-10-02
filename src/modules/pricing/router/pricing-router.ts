@@ -3,12 +3,12 @@ import { $Enums } from "../../../generated/prisma";
 import { AuthMiddleware } from "../../../shared/middleware/auth-middleware";
 import { JWTMiddleware } from "../../../shared/middleware/jwt-middleware";
 import { RBACMiddleware } from "../../../shared/middleware/rbac-middleware";
+import { PricingController } from "../controllers/availability-controller";
 import { OwnershipMiddleware } from "../../../shared/middleware/ownership-middleware";
-import { PropertyController } from "../controller/property-controller";
 
-export class PropertyRouter {
+export class PricingRouter {
   private router = Router();
-  private propertyController = new PropertyController();
+  private controller = new PricingController();
   private authMiddleware = new AuthMiddleware();
   private jwtMiddleware = new JWTMiddleware();
   private rbacMiddleware = new RBACMiddleware();
@@ -25,31 +25,45 @@ export class PropertyRouter {
       this.rbacMiddleware.checkRole([$Enums.UserRole.tenant]),
     ];
 
-    this.router.get("/properties/search", this.propertyController.search);
-    this.router.get("/properties/:id", this.propertyController.getDetails);
+    this.router.post(
+      "/properties/:propertyId/rooms/:roomId/availability",
+      ...tenantAccess,
+      this.ownershipMiddleware.checkRoomOwnership,
+      this.controller.setAvailability
+    );
+
     this.router.get(
-      "/properties/:id/calendar",
-      this.propertyController.getCalendar
+      "/properties/:propertyId/rooms/:roomId/availability",
+      this.controller.getAvailabilityRange
+    );
+
+    this.router.get(
+      "/properties/:propertyId/rooms/:roomId/availability/day",
+      this.controller.getAvailabilityByDate
     );
 
     this.router.post(
-      "/tenant/properties",
+      "/tenant/peakseasons",
       ...tenantAccess,
-      this.propertyController.create
+      this.controller.createPeakSeason
+    );
+
+    this.router.get(
+      "/tenant/peakseasons",
+      ...tenantAccess,
+      this.controller.listPeakSeasonsByTenant
     );
 
     this.router.patch(
-      "/tenant/properties/:id",
+      "/tenant/peakseasons/:id",
       ...tenantAccess,
-      this.ownershipMiddleware.checkPropertyOwnership,
-      this.propertyController.update
+      this.controller.updatePeakSeason
     );
 
     this.router.delete(
-      "/tenant/properties/:id",
+      "/tenant/peakseasons/:id",
       ...tenantAccess,
-      this.ownershipMiddleware.checkPropertyOwnership,
-      this.propertyController.delete
+      this.controller.deletePeakSeason
     );
   }
 
