@@ -60,8 +60,6 @@ export class PropertyController {
 
   public search = async (req: Request, res: Response) => {
     try {
-      // 1. Extract tenantId from the request user object
-      const tenantId = (req as any).user.id;
 
       const {
         page,
@@ -91,7 +89,6 @@ export class PropertyController {
 
       // 2. Pass tenantId as the first argument to searchProperties
       const result = await this.propertyService.searchProperties(
-        tenantId,
         params
       );
       succHandle(res, "Properties retrieved", result, 200);

@@ -31,7 +31,7 @@ export class PeakSeasonRepository {
     });
   }
 
-  // Method for single-day lookups (used by Applier)
+  // Method for single-day lookups (used by Applier, kept for backward compatibility if needed)
   public async findActivePeakSeasonsForProperty(
     propertyId: number,
     date: Date
@@ -48,7 +48,7 @@ export class PeakSeasonRepository {
     });
   }
 
-  // Method to find all peak seasons active within a date range for a specific property
+  // Method to find all peak seasons active within a date range for a specific property (Used by PropertyService)
   public async findActivePeakSeasonsForPropertyRange(
     propertyId: number,
     startDate: Date,
@@ -66,8 +66,20 @@ export class PeakSeasonRepository {
     });
   }
 
-  // NEW: Method to find all peak seasons relevant to a tenant within a date range (used by PropertySearcher)
-  public async findRelevantPeakSeasonsForRange(
+  // NEW/CORRECT: Method for public search - fetches ALL peak seasons active in the range (Used by PropertySearcher)
+  public async findAllRelevantPeakSeasonsForRange(
+    startDate: Date,
+    endDate: Date
+  ): Promise<PeakSeason[]> {
+    return prisma.peakSeason.findMany({
+      where: {
+        startDate: { lte: endDate },
+        endDate: { gte: startDate },
+      },
+    });
+  }
+
+  public async findRelevantPeakSeasonsForTenantRange(
     tenantId: number,
     startDate: Date,
     endDate: Date

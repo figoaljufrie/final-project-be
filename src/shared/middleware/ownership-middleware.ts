@@ -18,7 +18,6 @@ export class OwnershipMiddleware {
       const propertyId = Number(req.params.propertyId);
 
       if (isNaN(propertyId)) {
-        // Use errHandle for 400 Bad Request
         return errHandle(res, "Invalid property ID format.", 400);
       }
 

@@ -89,7 +89,7 @@ export class PropertyRepository {
       return {
         ...rest,
         minBasePrice,
-        rooms: rooms as any,
+        rooms: rooms,
       } as PropertyListItemDto;
     });
 

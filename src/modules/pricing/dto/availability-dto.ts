@@ -30,7 +30,6 @@ export interface AvailabilitySeedData {
   roomId: number;
   date: Date;
   isAvailable: boolean;
-  availableUnits: number;
   bookedUnits: number;
   customPrice: number | null;
 }
