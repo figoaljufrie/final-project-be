@@ -134,7 +134,7 @@ export class PeakSeasonService {
     return { message: "Peak season deleted successfully." };
   }
 
-  // Used by PropertyService for range calculation
+  // Used by PropertyService for range calculation (Single Property Scope)
   public async findActivePeakSeasonsForProperty(
     propertyId: number,
     startDate: Date,
@@ -147,13 +147,23 @@ export class PeakSeasonService {
     ) as Promise<PeakSeasonDto[]>;
   }
 
-  // Used by PropertySearcher for tenant-wide range lookups
-  public async findRelevantPeakSeasonsForRange(
+  // Used by PropertySearcher for public, global range lookups (Global Scope)
+  public async findAllRelevantPeakSeasonsForRange(
+    startDate: Date,
+    endDate: Date
+  ): Promise<PeakSeasonDto[]> {
+    return this.peakSeasonRepository.findAllRelevantPeakSeasonsForRange(
+      startDate,
+      endDate
+    ) as Promise<PeakSeasonDto[]>;
+  }
+
+  public async findRelevantPeakSeasonsForTenantRange(
     tenantId: number,
     startDate: Date,
     endDate: Date
   ): Promise<PeakSeasonDto[]> {
-    return this.peakSeasonRepository.findRelevantPeakSeasonsForRange(
+    return this.peakSeasonRepository.findRelevantPeakSeasonsForTenantRange(
       tenantId,
       startDate,
       endDate

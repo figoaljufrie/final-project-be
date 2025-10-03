@@ -46,13 +46,12 @@ export class PropertySearcher {
   }
 
   // Updated signature to accept tenantId
-  public async search(tenantId: number, params: PropertySearchQueryDto) {
+  public async search(params: PropertySearchQueryDto) {
     const { skip, limit: take } = paginate(params.page, params.limit);
 
     const whereClause: any = {
       deletedAt: null,
       published: true,
-      tenantId: tenantId, // Using the passed tenantId
       ...(params.name && {
         name: { contains: params.name, mode: "insensitive" },
       }),
@@ -83,7 +82,7 @@ export class PropertySearcher {
     if (params.checkInDate && params.checkOutDate) {
       properties = await this.filterAndPriceProperties(
         properties,
-        tenantId, // Pass tenantId
+        
         params.checkInDate,
         params.checkOutDate
       );
@@ -122,7 +121,6 @@ export class PropertySearcher {
   // Updated signature to accept tenantId
   private async filterAndPriceProperties(
     properties: PropertyListItemDto[],
-    tenantId: number,
     checkInDate: Date,
     checkOutDate: Date
   ): Promise<PropertyListItemDto[]> {
@@ -133,8 +131,7 @@ export class PropertySearcher {
 
     const [peakSeasons, allAvailability] = await Promise.all([
       // Use the new PeakSeasonService method
-      this.peakSeasonService.findRelevantPeakSeasonsForRange(
-        tenantId,
+      this.peakSeasonService.findAllRelevantPeakSeasonsForRange(
         checkInDate,
         checkOutDate
       ) as Promise<PeakSeasonDto[]>,

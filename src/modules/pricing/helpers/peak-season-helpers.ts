@@ -17,13 +17,13 @@ import { prisma } from "../../../shared/utils/prisma";
 
 export class PeakSeasonAvailabilityApplier {
   private propertyRepository: PropertyRepository;
-  private roomRepository: any; // Using 'any' to match the service's current usage
+  private roomRepository: RoomRepository;
   private availabilityRepository: AvailabilityRepository;
   private peakSeasonRepository: PeakSeasonRepository;
 
   constructor(
     propertyRepository: PropertyRepository,
-    roomRepository: any,
+    roomRepository: RoomRepository,
     availabilityRepository: AvailabilityRepository,
     peakSeasonRepository: PeakSeasonRepository
   ) {
@@ -33,7 +33,6 @@ export class PeakSeasonAvailabilityApplier {
     this.peakSeasonRepository = peakSeasonRepository;
   }
 
-  // Orchestrates the room availability update process
   public async applyChanges(
     peakSeason: PeakSeasonDto,
     oldPeakSeason?: PeakSeasonDto,
@@ -71,13 +70,22 @@ export class PeakSeasonAvailabilityApplier {
       allAvailability as RoomAvailabilityDto[]
     );
 
+    // FIX N+1: Fetch ALL relevant peak seasons for THIS TENANT in ONE query.
+    const RelevantPeakSeasons =
+      await this.peakSeasonRepository.findRelevantPeakSeasonsForTenantRange(
+        peakSeason.tenantId, // <-- Crucially scoped to the current tenant
+        rangeStart,
+        rangeEnd
+      );
+
     const upsertOperations = await this.createAvailabilityUpsertOperations(
       rooms,
       rangeStart,
       rangeEnd,
       peakSeason,
       psMap,
-      isDelete
+      isDelete,
+      RelevantPeakSeasons as PeakSeasonDto[]
     );
 
     if (upsertOperations.length > 0) {
@@ -85,16 +93,16 @@ export class PeakSeasonAvailabilityApplier {
     }
   }
 
-  // Resolves all affected Property IDs for a Peak Season
-  private async getPropertyIdsForPeakSeason(ps: PeakSeasonDto): Promise<number[]> {
+  private async getPropertyIdsForPeakSeason(
+    ps: PeakSeasonDto
+  ): Promise<number[]> {
     if (ps.applyToAllProperties) {
       const props = await this.propertyRepository.findByTenant(ps.tenantId);
-      return props.map((p: any) => p.id);
+      return props.map((p) => p.id);
     }
     return (ps.propertyIds as number[]) || [];
   }
 
-  // Calculates the combined date range for updates/deletes
   private getAffectedDateRange(
     peakSeason: PeakSeasonDto,
     oldPeakSeason?: PeakSeasonDto
@@ -116,19 +124,19 @@ export class PeakSeasonAvailabilityApplier {
           )
         )
       : peakSeason.endDate;
-      
+
     return { rangeStart, rangeEnd };
   }
-  
-  // Creates the list of Prisma upsert operations
-  private async createAvailabilityUpsertOperations(
+
+  private createAvailabilityUpsertOperations(
     rooms: RoomForPricing[],
     rangeStart: Date,
     rangeEnd: Date,
     peakSeason: PeakSeasonDto,
     psMap: Map<string, RoomAvailabilityDto>,
-    isDelete: boolean
-  ): Promise<Prisma.PrismaPromise<any>[]> {
+    isDelete: boolean,
+    allRelevantPeakSeasons: PeakSeasonDto[]
+  ): Prisma.PrismaPromise<any>[] {
     const dateRange = getDateRange(rangeStart, rangeEnd, true);
     const upsertOperations: Prisma.PrismaPromise<any>[] = [];
 
@@ -137,11 +145,12 @@ export class PeakSeasonAvailabilityApplier {
         const dateKey = date.toISOString().split("T")[0];
         const existingAvail = psMap.get(`${room.id}-${dateKey}`) ?? null;
 
-        let finalActivePeakSeasons =
-          await this.peakSeasonRepository.findActivePeakSeasonsForProperty(
-            room.propertyId,
-            date
-          );
+        let finalActivePeakSeasons = allRelevantPeakSeasons.filter((ps) => {
+          const isActive = date >= ps.startDate && date <= ps.endDate;
+          const appliesToProperty =
+            ps.applyToAllProperties || ps.propertyIds.includes(room.propertyId);
+          return isActive && appliesToProperty;
+        });
 
         finalActivePeakSeasons = finalActivePeakSeasons.filter(
           (ps) => ps.id !== peakSeason.id
@@ -153,7 +162,7 @@ export class PeakSeasonAvailabilityApplier {
 
         const { customPrice, reason } = calculateAvailabilityUpdate(
           room.basePrice,
-          existingAvail as RoomAvailabilityDto,
+          existingAvail,
           finalActivePeakSeasons
         );
 
@@ -161,7 +170,7 @@ export class PeakSeasonAvailabilityApplier {
           prisma.roomAvailability.upsert({
             where: {
               roomId_date: { roomId: room.id, date: date },
-            },
+            } as { roomId_date: { roomId: number; date: Date } },
             update: {
               customPrice: customPrice,
               reason: reason,

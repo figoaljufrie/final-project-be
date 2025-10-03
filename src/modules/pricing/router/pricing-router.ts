@@ -3,7 +3,7 @@ import { $Enums } from "../../../generated/prisma";
 import { AuthMiddleware } from "../../../shared/middleware/auth-middleware";
 import { JWTMiddleware } from "../../../shared/middleware/jwt-middleware";
 import { RBACMiddleware } from "../../../shared/middleware/rbac-middleware";
-import { PricingController } from "../controllers/availability-controller";
+import { PricingController } from "../controllers/pricing-controller";
 import { OwnershipMiddleware } from "../../../shared/middleware/ownership-middleware";
 
 export class PricingRouter {

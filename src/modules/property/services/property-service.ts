@@ -146,10 +146,9 @@ export class PropertyService {
 
   // FIX 2: Added tenantId parameter and passed it to the searcher
   public async searchProperties(
-    tenantId: number,
     params: PropertySearchQueryDto
   ) {
-    return this.propertySearcher.search(tenantId, params);
+    return this.propertySearcher.search( params);
   }
 
   public async softDeleteProperty(propertyId: number) {

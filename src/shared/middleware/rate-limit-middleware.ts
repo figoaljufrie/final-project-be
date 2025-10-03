@@ -18,3 +18,8 @@ export const emailVerificationLimiter = rateLimit({
   max: 5,
   message: "Too many verification requests, please try again later",
 });
+
+export const searchLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000, // 1 menit
+  max: 30,
+})

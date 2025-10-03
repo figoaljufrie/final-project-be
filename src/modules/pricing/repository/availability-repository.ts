@@ -97,7 +97,6 @@ export class AvailabilityRepository {
         roomId: roomId,
         date: new Date(dateCursor),
         isAvailable: true,
-        availableUnits: totalUnits,
         bookedUnits: 0,
         customPrice: null,
       });
