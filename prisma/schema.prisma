@@ -136,6 +136,7 @@ model RoomImage {
   id        Int      @id @default(autoincrement())
   roomId    Int      @map("room_id")
   url       String
+  publicId  String   @map("public_id")
   altText   String?  @map("alt_text")
   isPrimary Boolean  @default(false) @map("is_primary")
   order     Int      @default(0)

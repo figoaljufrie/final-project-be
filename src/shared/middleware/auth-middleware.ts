@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { AuthService } from "../../modules/auth/services/auth-service";
+import { AuthService } from "../../modules/Account/auth/services/auth-service";
 import { errHandle } from "../helpers/err-handler";
 
 export class AuthMiddleware {

@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import { UserDTO } from "../../modules/user/dto/user-dto";
+import { UserDTO } from "../../modules/Account/user/dto/user-dto";
 import { errHandle } from "../helpers/err-handler";
 import { $Enums } from "../../generated/prisma";
 import { ApiError } from "../utils/api-error";

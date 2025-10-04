@@ -1,17 +1,20 @@
-import dotenv from "dotenv";
-dotenv.config();
-import express, { Application } from "express";
 import cors from "cors";
-import { UserRouter } from "./modules/user/routers/user-router";
-import { AuthRouter } from "./modules/auth/routers/auth-router";
+import dotenv from "dotenv";
+import express, { Application } from "express";
+import { AuthRouter } from "./modules/Account/auth/routers/auth-router";
+import { OAuthRouter } from "./modules/Account/oAuth/routers/oAuth-router";
+import { UserRouter } from "./modules/Account/user/routers/user-router";
 import { BookingRoutes } from "./modules/booking/routers/booking.routes";
-import { CronService } from './modules/cron/services/cron.service';
-import { OAuthRouter } from "./modules/oAuth/routers/oAuth-router";
-import { TenantBookingRoutes } from "./modules/tenant/tenant-booking-status/routers/tenant-booking-status.routes";
+import { CronService } from "./modules/cron/services/cron.service";
+import { PricingRouter } from "./modules/Inventory/pricing/router/pricing-router";
+import { PropertyRouter } from "./modules/Inventory/property/router/property-router";
+import { RoomRouter } from "./modules/Inventory/room/router/room-router";
 import { PaymentRoutes } from "./modules/payment/routers/payment.routes";
+import { ReportRoutes } from "./modules/report/routers/report.routes";
 import { ReviewRoutes } from "./modules/review/routers/review.routes";
-import { ReportRoutes } from './modules/report/routers/report.routes';
+import { TenantBookingRoutes } from "./modules/tenant/tenant-booking-status/routers/tenant-booking-status.routes";
 import { prisma } from "./shared/utils/prisma";
+dotenv.config();
 
 export class App {
   private app: Application;
@@ -36,14 +39,12 @@ export class App {
   }
 
   public initializeRoutes() {
-
     this.app.get("/", (req, res) => {
       res.json({ message: "Nginepin API is running!" });
     });
 
     // booking routes
     this.app.use("/api/bookings", new BookingRoutes().getRouter());
-
 
     // tenant booking routes
     this.app.use("/api/tenant/bookings", new TenantBookingRoutes().getRouter());
@@ -61,22 +62,30 @@ export class App {
     this.app.use("/api", new UserRouter().getRouter());
     this.app.use("/api", new AuthRouter().getRouter());
 
-    this.app.use("/api", new OAuthRouter().getRouter())
+    this.app.use("/api", new OAuthRouter().getRouter());
 
+    //property routes:
+    this.app.use("/api", new PropertyRouter().getRouter());
+
+    //room Routes:
+    this.app.use("/api", new RoomRouter().getRouter());
+
+    //pricing Routes:
+    this.app.use("/api", new PricingRouter().getRouter());
   }
 
   // cron service setup for testing purpose
   private setupGracefulShutdown() {
     // Graceful shutdown
     process.on("SIGINT", async () => {
-      console.log('Shutting down server...');
+      console.log("Shutting down server...");
       this.cronService.stopAllTasks();
       await prisma.$disconnect();
       process.exit(0);
     });
 
     process.on("SIGTERM", async () => {
-      console.log('Shutting down server...');
+      console.log("Shutting down server...");
       this.cronService.stopAllTasks();
       await prisma.$disconnect();
       process.exit(0);
@@ -97,7 +106,7 @@ export class App {
       try {
         await this.cronService.triggerAutoCancelExpiredBookings();
       } catch (error) {
-        console.error('Error in auto-cancel cron job:', error);
+        console.error("Error in auto-cancel cron job:", error);
       }
     }, 300000); // Every 5 minutes
   }

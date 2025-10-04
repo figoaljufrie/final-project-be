@@ -1,5 +1,5 @@
 import { randomBytes } from "crypto";
-import { AuthRepository } from "../../../modules/auth/repositories/auth-repository";
+import { AuthRepository } from "../../../modules/Account/auth/repositories/auth-repository";
 import { MailUtils } from "./mail-utils";
 
 export class MailTokenService {
