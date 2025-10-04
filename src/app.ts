@@ -101,18 +101,14 @@ export class App {
 
   // Start automatic cron jobs
   private startCronJobs() {
-    console.log("Starting automatic cron jobs...");
-
-    // Auto-cancel expired bookings every minute
+    // Auto-cancel expired bookings every 5 minutes (only for manual transfer bookings)
     setInterval(async () => {
       try {
         await this.cronService.triggerAutoCancelExpiredBookings();
       } catch (error) {
         console.error("Error in auto-cancel cron job:", error);
       }
-    }, 60000); // Every minute
-
-    console.log("Cron jobs started successfully");
+    }, 300000); // Every 5 minutes
   }
 }
 
