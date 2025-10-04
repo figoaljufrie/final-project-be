@@ -1,4 +1,3 @@
-// middlewares/rate-limit.ts
 import rateLimit from "express-rate-limit";
 
 export const loginLimiter = rateLimit({
@@ -22,4 +21,4 @@ export const emailVerificationLimiter = rateLimit({
 export const searchLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 menit
   max: 30,
-})
+});

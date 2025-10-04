@@ -1,7 +1,6 @@
-// shared/middleware/ownership-middleware.ts
 import { NextFunction, Request, Response } from "express";
-import { PropertyRepository } from "../../modules/property/repository/property-repository";
-import { RoomRepository } from "../../modules/room/repository/room-repository";
+import { PropertyRepository } from "../../modules/Inventory/property/repository/property-repository";
+import { RoomRepository } from "../../modules/Inventory/room/repository/room-repository";
 import { errHandle } from "../helpers/err-handler";
 
 export class OwnershipMiddleware {
