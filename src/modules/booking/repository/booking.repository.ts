@@ -189,28 +189,9 @@ export class BookingRepository {
         },
       });
 
-      // Update room availability for each date
-      for (const date of dates) {
-        await tx.roomAvailability.upsert({
-          where: {
-            roomId_date: {
-              roomId,
-              date,
-            },
-          },
-          update: {
-            bookedUnits: {
-              increment: unitCount,
-            },
-          },
-          create: {
-            roomId,
-            date,
-            isAvailable: true,
-            bookedUnits: unitCount,
-          },
-        });
-      }
+      // NOTE: Do NOT update room availability here!
+      // Room availability should only be updated when payment is CONFIRMED
+      // This prevents double-booking and ensures proper payment flow
 
       return booking;
     });
