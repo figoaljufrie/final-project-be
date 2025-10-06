@@ -132,34 +132,96 @@ export class TenantBookingRepository {
     });
   }
 
-  // Confirm payment
+  // Confirm payment with room availability update
   async confirmPayment(bookingId: number) {
-    return await prisma.booking.update({
-      where: { id: bookingId },
-      data: {
-        status: BookingStatus.confirmed,
-        confirmedAt: new Date(),
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            avatarUrl: true,
+    return await prisma.$transaction(async (tx) => {
+      // Get booking details first
+      const booking = await tx.booking.findUnique({
+        where: { id: bookingId },
+        include: {
+          items: {
+            include: {
+              room: true,
+            },
           },
         },
-        items: {
-          include: {
-            room: {
-              include: {
-                property: true,
+      });
+
+      if (!booking) {
+        throw new Error('Booking not found');
+      }
+
+      // Update booking status
+      const confirmedBooking = await tx.booking.update({
+        where: { id: bookingId },
+        data: {
+          status: BookingStatus.confirmed,
+          confirmedAt: new Date(),
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              avatarUrl: true,
+            },
+          },
+          items: {
+            include: {
+              room: {
+                include: {
+                  property: true,
+                },
               },
             },
           },
         },
-      },
+      });
+
+      // Update room availability for each date in booking range
+      const dates = this.getDateRange(booking.checkIn, booking.checkOut);
+      
+      for (const item of booking.items) {
+        for (const date of dates) {
+          await tx.roomAvailability.upsert({
+            where: {
+              roomId_date: {
+                roomId: item.roomId,
+                date: date,
+              },
+            },
+            update: {
+              bookedUnits: {
+                increment: item.unitCount,
+              },
+            },
+            create: {
+              roomId: item.roomId,
+              date: date,
+              isAvailable: true,
+              bookedUnits: item.unitCount,
+            },
+          });
+        }
+      }
+
+      return confirmedBooking;
     });
+  }
+
+  // Helper method to get date range
+  private getDateRange(checkIn: Date, checkOut: Date): Date[] {
+    const dates: Date[] = [];
+    const currentDate = new Date(checkIn);
+    const endDate = new Date(checkOut);
+
+    while (currentDate < endDate) {
+      dates.push(new Date(currentDate));
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    return dates;
   }
 
   // Reject payment

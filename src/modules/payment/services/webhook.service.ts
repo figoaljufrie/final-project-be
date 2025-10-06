@@ -128,16 +128,46 @@ export class WebhookService {
   }
 
   private async handleSuccessfulPayment(booking: any, webhookData: MidtransWebhookData): Promise<void> {
-    // Update booking status ke confirmed
-    await prisma.booking.update({
-      where: { id: booking.id },
-      data: {
-        status: BookingStatus.confirmed,
-        confirmedAt: new Date(),
-        midtransStatus: webhookData.transaction_status,
-        midtransPaymentType: webhookData.payment_type,
-        midtransSettlementTime: webhookData.settlement_time ? new Date(webhookData.settlement_time) : null,
-      },
+    // Update booking status and room availability in transaction
+    await prisma.$transaction(async (tx) => {
+      // Update booking status ke confirmed
+      await tx.booking.update({
+        where: { id: booking.id },
+        data: {
+          status: BookingStatus.confirmed,
+          confirmedAt: new Date(),
+          midtransStatus: webhookData.transaction_status,
+          midtransPaymentType: webhookData.payment_type,
+          midtransSettlementTime: webhookData.settlement_time ? new Date(webhookData.settlement_time) : null,
+        },
+      });
+
+      // Update room availability for each date in booking range
+      const dates = BookingUtils.getDateRange(booking.checkIn, booking.checkOut);
+      
+      for (const item of booking.items) {
+        for (const date of dates) {
+          await tx.roomAvailability.upsert({
+            where: {
+              roomId_date: {
+                roomId: item.roomId,
+                date: date,
+              },
+            },
+            update: {
+              bookedUnits: {
+                increment: item.unitCount,
+              },
+            },
+            create: {
+              roomId: item.roomId,
+              date: date,
+              isAvailable: true,
+              bookedUnits: item.unitCount,
+            },
+          });
+        }
+      }
     });
 
     // Cancel auto-cancel task dan schedule check-in reminder and booking completion
