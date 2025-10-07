@@ -4,7 +4,6 @@ import { TenantBookingFilter } from "../dto/tenant-booking-status.dto";
 import { BookingUtils } from "../../../../shared/utils/booking-utils";
 
 export class TenantBookingRepository {
-  
   // Get tenant bookings with filters and pagination
   async getTenantBookings(filters: TenantBookingFilter) {
     const {
@@ -25,10 +24,10 @@ export class TenantBookingRepository {
       some: {
         room: {
           property: {
-            tenantId: tenantId
-          }
-        }
-      }
+            tenantId: tenantId,
+          },
+        },
+      },
     };
 
     if (status) where.status = status;
@@ -67,6 +66,7 @@ export class TenantBookingRepository {
                       name: true,
                       address: true,
                       city: true,
+                      province: true,
                       tenantId: true,
                     },
                   },
@@ -82,23 +82,29 @@ export class TenantBookingRepository {
       prisma.booking.count({ where }),
     ]);
 
-    return { bookings, total };
+    // Transform the data to match frontend expectations
+    const transformedBookings = bookings.map((booking) => ({
+      ...booking,
+      property: booking.items[0]?.room?.property || null,
+    }));
+
+    return { bookings: transformedBookings, total };
   }
 
   // Find booking by ID for tenant
   async findTenantBooking(bookingId: number, tenantId: number) {
-    return await prisma.booking.findFirst({
+    const booking = await prisma.booking.findFirst({
       where: {
         id: bookingId,
         items: {
           some: {
             room: {
               property: {
-                tenantId: tenantId
-              }
-            }
-          }
-        }
+                tenantId: tenantId,
+              },
+            },
+          },
+        },
       },
       include: {
         user: {
@@ -130,6 +136,14 @@ export class TenantBookingRepository {
         },
       },
     });
+
+    if (!booking) return null;
+
+    // Transform the data to match frontend expectations
+    return {
+      ...booking,
+      property: booking.items[0]?.room?.property || null,
+    };
   }
 
   // Confirm payment with room availability update
@@ -148,7 +162,7 @@ export class TenantBookingRepository {
       });
 
       if (!booking) {
-        throw new Error('Booking not found');
+        throw new Error("Booking not found");
       }
 
       // Update booking status
@@ -181,7 +195,7 @@ export class TenantBookingRepository {
 
       // Update room availability for each date in booking range
       const dates = this.getDateRange(booking.checkIn, booking.checkOut);
-      
+
       for (const item of booking.items) {
         for (const date of dates) {
           await tx.roomAvailability.upsert({
@@ -269,7 +283,7 @@ export class TenantBookingRepository {
     });
 
     if (!booking) {
-      throw new Error('Booking not found');
+      throw new Error("Booking not found");
     }
 
     return await prisma.$transaction(async (tx) => {
@@ -285,8 +299,11 @@ export class TenantBookingRepository {
 
       // Release room availability
       for (const item of booking.items) {
-        const dates = BookingUtils.getDateRange(booking.checkIn, booking.checkOut);
-        
+        const dates = BookingUtils.getDateRange(
+          booking.checkIn,
+          booking.checkOut
+        );
+
         for (const date of dates) {
           await tx.roomAvailability.updateMany({
             where: {
@@ -315,11 +332,11 @@ export class TenantBookingRepository {
           some: {
             room: {
               property: {
-                tenantId: tenantId
-              }
-            }
-          }
-        }
+                tenantId: tenantId,
+              },
+            },
+          },
+        },
       },
     });
   }
