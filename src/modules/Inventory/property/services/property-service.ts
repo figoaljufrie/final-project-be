@@ -86,6 +86,10 @@ export class PropertyService {
     return this.propertyRepository.update(propertyId, updateData);
   }
 
+  public async getPropertiesByTenant(tenantId: number) {
+    return this.propertyRepository.findByTenant(tenantId);
+  }
+
   public async getPropertyDetails(
     propertyId: number,
     checkInDate?: Date,
