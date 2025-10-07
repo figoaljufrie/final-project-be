@@ -1,4 +1,3 @@
-// modules/user/routes/user-router.ts
 import { Router } from "express";
 import { $Enums } from "../../../../generated/prisma";
 import { AuthMiddleware } from "../../../../shared/middleware/auth-middleware";

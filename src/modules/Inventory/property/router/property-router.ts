@@ -25,6 +25,12 @@ export class PropertyRouter {
       this.rbacMiddleware.checkRole([$Enums.UserRole.tenant]),
     ];
 
+    this.router.get(
+      "/tenant/properties",
+      ...tenantAccess,
+      this.propertyController.getTenantProperties
+    );
+
     this.router.get("/properties/search", this.propertyController.search);
     this.router.get("/properties/:id", this.propertyController.getDetails);
     this.router.get(

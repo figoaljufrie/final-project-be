@@ -58,6 +58,21 @@ export class PropertyController {
     }
   };
 
+  public getTenantProperties = async (req: Request, res: Response) => {
+    try {
+      const tenantId = (req as any).user.id;
+      const result = await this.propertyService.getPropertiesByTenant(tenantId);
+      succHandle(res, "Tenant properties retrieved", result, 200);
+    } catch (error) {
+      errHandle(
+        res,
+        "Failed to retrieve tenant properties",
+        400,
+        (error as Error).message
+      );
+    }
+  };
+
   public search = async (req: Request, res: Response) => {
     try {
       const {
