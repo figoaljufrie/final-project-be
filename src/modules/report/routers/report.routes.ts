@@ -1,12 +1,13 @@
-import { Router } from 'express';
-import { ReportController } from '../controllers/report.controller';
-import { ReportValidation } from '../validation/report.validation';
-import { AuthMiddleware } from '../../../shared/middleware/auth-middleware';
-import { RBACMiddleware } from '../../../shared/middleware/rbac-middleware';
-import { $Enums } from '../../../generated/prisma';
-import { ReportService } from '../services/report.service';
-import { ReportRepository } from '../repository/report.repository';
-import { prisma } from '../../../shared/utils/prisma';
+import { Router } from "express";
+import { ReportController } from "../controllers/report.controller";
+import { ReportValidation } from "../validation/report.validation";
+import { AuthMiddleware } from "../../../shared/middleware/auth-middleware";
+import { JWTMiddleware } from "../../../shared/middleware/jwt-middleware";
+import { RBACMiddleware } from "../../../shared/middleware/rbac-middleware";
+import { $Enums } from "../../../generated/prisma";
+import { ReportService } from "../services/report.service";
+import { ReportRepository } from "../repository/report.repository";
+import { prisma } from "../../../shared/utils/prisma";
 
 export class ReportRoutes {
   public router: Router;
@@ -22,22 +23,27 @@ export class ReportRoutes {
 
   private initializeRoutes() {
     const authMiddleware = new AuthMiddleware();
+    const jwtMiddleware = new JWTMiddleware();
     const rbacMiddleware = new RBACMiddleware();
+
+    const tenantAccess = [
+      jwtMiddleware.verifyToken,
+      authMiddleware.authenticate,
+      rbacMiddleware.checkRole([$Enums.UserRole.tenant]),
+    ];
 
     // Sales Report
     this.router.get(
-      '/sales',
-      authMiddleware.authenticate,
-      rbacMiddleware.checkRole([$Enums.UserRole.tenant]),
+      "/sales",
+      ...tenantAccess,
       ReportValidation.getSalesReport,
       this.reportController.getSalesReport
     );
 
     // Property Report
     this.router.get(
-      '/property',
-      authMiddleware.authenticate,
-      rbacMiddleware.checkRole([$Enums.UserRole.tenant]),
+      "/property",
+      ...tenantAccess,
       ReportValidation.getPropertyReport,
       this.reportController.getPropertyReport
     );
