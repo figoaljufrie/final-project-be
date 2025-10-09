@@ -11,6 +11,14 @@ export enum PropertySortField {
   PRICE = "price",
 }
 
+export interface PropertyImageDto {
+  url: string;
+  publicId: string;
+  altText?: string;
+  isPrimary: boolean;
+  order: number;
+}
+
 // DTO for data passed to repository's create function
 export interface PropertyCreateRepoDto {
   name: string;
@@ -27,6 +35,7 @@ export interface CreatePropertyDto {
   name: string;
   description: string;
   category: string;
+  images?: PropertyImageDto[];
 }
 
 // DTO for data passed to repository's update function
@@ -46,6 +55,7 @@ export interface UpdatePropertyDto {
   category?: string;
   city?: string;
   address?: string;
+  images?: PropertyImageDto[];
 }
 
 export interface PropertySearchQueryDto {

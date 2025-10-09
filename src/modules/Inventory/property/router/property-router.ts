@@ -5,6 +5,7 @@ import { JWTMiddleware } from "../../../../shared/middleware/jwt-middleware";
 import { OwnershipMiddleware } from "../../../../shared/middleware/ownership-middleware";
 import { RBACMiddleware } from "../../../../shared/middleware/rbac-middleware";
 import { PropertyController } from "../controller/property-controller";
+import { UploaderMiddleware } from "../../../../shared/middleware/uploader-middleware";
 
 export class PropertyRouter {
   private router = Router();
@@ -13,6 +14,7 @@ export class PropertyRouter {
   private jwtMiddleware = new JWTMiddleware();
   private rbacMiddleware = new RBACMiddleware();
   private ownershipMiddleware = new OwnershipMiddleware();
+  private uploaderMiddleware = new UploaderMiddleware();
 
   constructor() {
     this.initializeRoutes();
@@ -41,6 +43,7 @@ export class PropertyRouter {
     this.router.post(
       "/tenant/properties",
       ...tenantAccess,
+      this.uploaderMiddleware.upload().array("images", 5),
       this.propertyController.create
     );
 
@@ -48,6 +51,7 @@ export class PropertyRouter {
       "/tenant/properties/:propertyId",
       ...tenantAccess,
       this.ownershipMiddleware.checkPropertyOwnership,
+      this.uploaderMiddleware.upload().array("images", 5),
       this.propertyController.update
     );
 

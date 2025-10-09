@@ -23,10 +23,22 @@ export class PropertyController {
     try {
       const tenantId = (req as any).user.id;
       const payload: CreatePropertyDto = req.body;
+      const files = (req.files as Express.Multer.File[] | undefined) || [];
+
+      // ✅ Consistent metadata handling, similar to RoomController
+      const mergedFiles = files.map((file, i) => ({
+        file,
+        isPrimary: i === 0,
+        order: i,
+        altText: file.originalname, // Use original name as default alt text
+      }));
+
       const result = await this.propertyService.createProperty(
         tenantId,
-        payload
+        payload,
+        mergedFiles
       );
+
       succHandle(res, "Property created", result, 201);
     } catch (error) {
       errHandle(
@@ -42,11 +54,23 @@ export class PropertyController {
     try {
       const tenantId = (req as any).user.id;
       const propertyId = Number(req.params.propertyId);
+      const files = (req.files as Express.Multer.File[] | undefined) || [];
+
+      // ✅ Consistent metadata handling, similar to RoomController
+      const mergedFiles = files.map((file, i) => ({
+        file,
+        isPrimary: i === 0,
+        order: i,
+        altText: file.originalname,
+      }));
+
       const result = await this.propertyService.updateProperty(
         tenantId,
         propertyId,
-        req.body
+        req.body,
+        mergedFiles
       );
+
       succHandle(res, "Property updated", result, 200);
     } catch (error) {
       errHandle(
@@ -58,6 +82,7 @@ export class PropertyController {
     }
   };
 
+  // ... (rest of the methods are unchanged and already correct)
   public getTenantProperties = async (req: Request, res: Response) => {
     try {
       const tenantId = (req as any).user.id;
@@ -101,7 +126,6 @@ export class PropertyController {
         sortOrder: sortOrderValue,
       };
 
-      // 2. Pass tenantId as the first argument to searchProperties
       const result = await this.propertyService.searchProperties(params);
       succHandle(res, "Properties retrieved", result, 200);
     } catch (error) {

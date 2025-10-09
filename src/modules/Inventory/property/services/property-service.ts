@@ -3,6 +3,7 @@ import {
   RoomAvailability as PrismaRoomAvailability,
 } from "../../../../generated/prisma";
 import { ApiError } from "../../../../shared/utils/api-error";
+import { ImageService } from "../../images/services/image-service";
 import { PeakSeasonDto } from "../../pricing/dto/availability-dto";
 import { AvailabilityService } from "../../pricing/services/availability-service";
 import { PeakSeasonService } from "../../pricing/services/peak-season-service";
@@ -23,22 +24,33 @@ import { PropertySearcher } from "../searcher/property-searcher";
 
 type RoomAvailabilityType = PrismaRoomAvailability;
 
+interface ImageFileInput {
+  file: Express.Multer.File;
+  altText?: string;
+  isPrimary: boolean;
+  order: number;
+}
+
 export class PropertyService {
   private propertyRepository = new PropertyRepository();
   private availabilityService = new AvailabilityService();
   private peakSeasonService = new PeakSeasonService();
   private propertySearcher: PropertySearcher;
+  private imageService = new ImageService();
 
   constructor() {
-    // FIX 1: Pass the new peakSeasonService dependency to the PropertySearcher
     this.propertySearcher = new PropertySearcher(
       this.propertyRepository,
       this.availabilityService,
-      this.peakSeasonService // Added required third argument
+      this.peakSeasonService
     );
   }
 
-  public async createProperty(tenantId: number, payload: CreatePropertyDto) {
+  public async createProperty(
+    tenantId: number,
+    payload: CreatePropertyDto,
+    files?: ImageFileInput[]
+  ) {
     const slug = payload.name
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
@@ -46,7 +58,7 @@ export class PropertyService {
 
     const repoPayload: PropertyCreateRepoDto = {
       name: payload.name,
-      slug: slug,
+      slug,
       description: payload.description,
       category: payload.category as $Enums.PropertyCategory,
       tenant: {
@@ -54,13 +66,24 @@ export class PropertyService {
       },
     };
 
-    return this.propertyRepository.create(repoPayload);
+    const property = await this.propertyRepository.create(repoPayload);
+
+    if (files && files.length > 0) {
+      await this.imageService.handleCreateImages(
+        "property",
+        property.id,
+        files
+      );
+    }
+
+    return this.propertyRepository.findById(property.id);
   }
 
   public async updateProperty(
     tenantId: number,
     propertyId: number,
-    data: UpdatePropertyDto
+    data: UpdatePropertyDto,
+    files?: ImageFileInput[]
   ) {
     const existing = await this.propertyRepository.findById(propertyId);
     if (!existing) throw new ApiError("Property not found", 404);
@@ -71,19 +94,36 @@ export class PropertyService {
 
     const updateData: Partial<PropertyUpdateRepoDto> = {
       ...rest,
-      ...(category && {
-        category: category as $Enums.PropertyCategory,
-      }),
+      ...(category && { category: category as $Enums.PropertyCategory }),
     };
 
-    if (data.name) {
+    if (data.name && data.name !== existing.name) {
       updateData.slug = data.name
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "-")
         .replace(/^-|-$/g, "");
     }
 
-    return this.propertyRepository.update(propertyId, updateData);
+    await this.propertyRepository.update(propertyId, updateData);
+
+    if (files && files.length > 0) {
+      await this.imageService.handleUpdateImages("property", propertyId, files);
+    }
+
+    const finalUpdatedProperty = await this.propertyRepository.findById(
+      propertyId
+    );
+
+    if (!finalUpdatedProperty) {
+      throw new ApiError("Failed to retrieve updated property", 500);
+    }
+
+    return finalUpdatedProperty;
+  }
+
+  public async softDeleteProperty(propertyId: number) {
+    await this.imageService.handleDeleteImages("property", propertyId);
+    return this.propertyRepository.softDelete(propertyId);
   }
 
   public async getPropertiesByTenant(tenantId: number) {
@@ -138,7 +178,7 @@ export class PropertyService {
       return {
         ...room,
         calculatedPrice: isAvailable ? minPrice : null,
-        isAvailable: isAvailable,
+        isAvailable,
       };
     });
 
@@ -147,13 +187,8 @@ export class PropertyService {
     return property;
   }
 
-  // FIX 2: Added tenantId parameter and passed it to the searcher
   public async searchProperties(params: PropertySearchQueryDto) {
     return this.propertySearcher.search(params);
-  }
-
-  public async softDeleteProperty(propertyId: number) {
-    return this.propertyRepository.softDelete(propertyId);
   }
 
   public async getPropertyCalendar(

@@ -13,6 +13,7 @@ export class PricingController {
   private availabilityService = new AvailabilityService();
   private peakSeasonService = new PeakSeasonService();
 
+  //availability:
   public setAvailability = async (req: Request, res: Response) => {
     try {
       const roomId = safeNumber(req.params.roomId);
@@ -72,6 +73,7 @@ export class PricingController {
     }
   };
 
+  //peak-season:
   public createPeakSeason = async (req: Request, res: Response) => {
     try {
       const tenantId = (req as any).user.id;
@@ -141,6 +143,41 @@ export class PricingController {
       errHandle(
         res,
         "Failed to delete peak season",
+        400,
+        (err as Error).message
+      );
+    }
+  };
+
+  public getPeakSeasonsForPropertyRange = async (
+    req: Request,
+    res: Response
+  ) => {
+    try {
+      const propertyId = safeNumber(req.params.propertyId);
+      const start = req.query.start as string;
+      const end = req.query.end as string;
+
+      if (!propertyId) throw new Error("Invalid property ID");
+      if (!start || !end) throw new Error("Start and end dates are required");
+
+      const startDate = new Date(start);
+      const endDate = new Date(end);
+      startDate.setHours(0, 0, 0, 0);
+      endDate.setHours(0, 0, 0, 0);
+
+      const result =
+        await this.peakSeasonService.findPeakSeasonsForPropertyRange(
+          propertyId,
+          startDate,
+          endDate
+        );
+
+      succHandle(res, "Peak seasons for property retrieved", result, 200);
+    } catch (err) {
+      errHandle(
+        res,
+        "Failed to get peak seasons for property",
         400,
         (err as Error).message
       );

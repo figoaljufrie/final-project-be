@@ -44,6 +44,7 @@ export class RoomRouter {
       "/properties/:propertyId/rooms/:roomId",
       ...tenantAccess,
       this.ownershipMiddleware.checkPropertyOwnership,
+      this.uploaderMiddleware.upload().array("images", 5),
       this.roomController.update
     );
 

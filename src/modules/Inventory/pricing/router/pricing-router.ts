@@ -43,8 +43,9 @@ export class PricingRouter {
     );
 
     this.router.post(
-      "/tenant/peakseasons",
+      "/properties/:propertyId/peakseasons",
       ...tenantAccess,
+      this.ownershipMiddleware.checkPropertyOwnership,
       this.controller.createPeakSeason
     );
 
@@ -55,15 +56,24 @@ export class PricingRouter {
     );
 
     this.router.patch(
-      "/tenant/peakseasons/:id",
+      "/properties/:propertyId/peakseasons/:id",
       ...tenantAccess,
+      this.ownershipMiddleware.checkPropertyOwnership,
       this.controller.updatePeakSeason
     );
 
+    // Delete a peak season
     this.router.delete(
-      "/tenant/peakseasons/:id",
+      "/properties/:propertyId/peakseasons/:id",
       ...tenantAccess,
+      this.ownershipMiddleware.checkPropertyOwnership,
       this.controller.deletePeakSeason
+    );
+
+    //Public:
+    this.router.get(
+      "/properties/:propertyId/peakseasons",
+      this.controller.getPeakSeasonsForPropertyRange
     );
   }
 
