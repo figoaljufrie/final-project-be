@@ -1,3 +1,4 @@
+import { start } from "repl";
 import { PeakSeason, Prisma } from "../../../../generated/prisma";
 import { prisma } from "../../../../shared/utils/prisma";
 
@@ -90,6 +91,70 @@ export class PeakSeasonRepository {
         startDate: { lte: endDate },
         endDate: { gte: startDate },
       },
+    });
+  }
+
+  public async hasOverlapped(
+    tenantId: number,
+    startDate: Date,
+    endDate: Date,
+    propertyIds: number[] | undefined,
+    applyToAllProperties: boolean,
+    exludeId?: number
+  ): Promise<boolean> {
+    const s = new Date(startDate);
+    s.setHours(0, 0, 0, 0);
+    const e = new Date(endDate);
+    e.setHours(0, 0, 0, 0);
+
+    const dateOverlapClause = {
+      tenantId: tenantId,
+      startDate: { lte: e },
+      endDate: { gte: s },
+    } as any;
+
+    const candidates = await prisma.peakSeason.findMany({
+      where: {
+        ...dateOverlapClause,
+        ...(exludeId ? { id: { not: exludeId } } : {}),
+      },
+    });
+
+    if (!candidates || candidates.length === 0) return false;
+    if (applyToAllProperties) {
+      return candidates.length > 0;
+    }
+
+    const incomingSet = new Set((propertyIds || []).map((p) => Number(p)));
+
+    for (const cand of candidates) {
+      if (cand.applyToAllProperties) {
+        return true;
+      }
+
+      const candProps: number[] = (cand.propertyIds as number[]) || [];
+      for (const p of candProps) {
+        if (incomingSet.has(Number(p))) return true;
+      }
+    }
+    return false;
+  }
+
+  public async findForPropertyInRange(
+    propertyId: number,
+    startDate: Date,
+    endDate: Date
+  ): Promise<PeakSeason[]> {
+    return prisma.peakSeason.findMany({
+      where: {
+        startDate: { lte: endDate },
+        endDate: { gte: startDate },
+        OR: [
+          { applyToAllProperties: true },
+          { propertyIds: { has: propertyId } },
+        ],
+      },
+      orderBy: { startDate: "asc" },
     });
   }
 }

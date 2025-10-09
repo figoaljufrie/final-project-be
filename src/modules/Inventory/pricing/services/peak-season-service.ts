@@ -39,6 +39,21 @@ export class PeakSeasonService {
       this.propertyRepository
     );
 
+    const hasOverlap = await this.peakSeasonRepository.hasOverlapped(
+      tenantId,
+      startDate,
+      endDate,
+      payload.propertyIds,
+      payload.applyToAllProperties
+    );
+
+    if (hasOverlap) {
+      throw new ApiError(
+        "Peak season overlaps with an existing peak season for the specified properties.",
+        400
+      );
+    }
+
     const data: PeakSeasonRepoCreateDto = {
       tenantId,
       name: payload.name,
@@ -84,6 +99,22 @@ export class PeakSeasonService {
       this.propertyRepository
     );
 
+    const hasOverlap = await this.peakSeasonRepository.hasOverlapped(
+      tenantId,
+      startDate ?? existing.startDate,
+      endDate ?? existing.endDate,
+      payload.propertyIds ?? existing.propertyIds,
+      payload.applyToAllProperties ?? existing.applyToAllProperties,
+      id
+    );
+
+    if (hasOverlap) {
+      throw new ApiError(
+        "Updated peak season would overlap with an existing peak season for the specified properties.",
+        400
+      );
+    }
+
     const updateData: Partial<Prisma.PeakSeasonUpdateInput> = {};
 
     if (payload.name !== undefined) updateData.name = payload.name;
@@ -97,7 +128,6 @@ export class PeakSeasonService {
       updateData.applyToAllProperties = payload.applyToAllProperties;
     if (payload.propertyIds !== undefined)
       updateData.propertyIds = payload.propertyIds;
-    // REMOVED: priority line
 
     const updatedPeakSeason = await this.peakSeasonRepository.updatePeakSeason(
       id,
@@ -141,6 +171,18 @@ export class PeakSeasonService {
       startDate,
       endDate
     ) as Promise<PeakSeasonDto[]>;
+  }
+
+  public async findPeakSeasonsForPropertyRange(
+    propertyId: number,
+    startDate: Date,
+    endDate: Date
+  ) {
+    return this.peakSeasonRepository.findForPropertyInRange(
+      propertyId,
+      startDate,
+      endDate
+    );
   }
 
   public async findAllRelevantPeakSeasonsForRange(

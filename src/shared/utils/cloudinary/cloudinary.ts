@@ -1,5 +1,5 @@
 import { v2 as cloudinary, UploadApiResponse } from "cloudinary";
-import { Readable } from "nodemailer/lib/xoauth2";
+import { Readable } from "stream";
 
 export class CloudinaryUtils {
   constructor() {
@@ -10,31 +10,41 @@ export class CloudinaryUtils {
     });
   }
 
-  private bufferToStream = (buffer: Buffer) => {
+  private bufferToStream(buffer: Buffer): Readable {
     const readable = new Readable();
-    readable._read = () => {};
+    readable._read = () => {}; // no-op
     readable.push(buffer);
     readable.push(null);
     return readable;
-  };
+  }
 
-  upload = (file: Express.Multer.File): Promise<UploadApiResponse> => {
+  async upload(file: Express.Multer.File): Promise<UploadApiResponse> {
     return new Promise((resolve, reject) => {
-      const readableStream = this.bufferToStream(file.buffer);
+      try {
+        if (!file?.buffer) {
+          return reject(new Error("No file buffer provided"));
+        }
 
-      const uploadStream = cloudinary.uploader.upload_stream((err, result) => {
-        if (err) return reject(err);
+        const readableStream = this.bufferToStream(file.buffer);
 
-        if (!result) return reject(new Error("Upload Failed."));
-        resolve(result);
-      });
+        const uploadStream = cloudinary.uploader.upload_stream(
+          { folder: "your_app_folder" }, // optional: group uploads
+          (err, result) => {
+            if (err) return reject(err);
+            if (!result) return reject(new Error("Upload failed — no result."));
+            resolve(result);
+          }
+        );
 
-      readableStream.pipe(uploadStream);
+        readableStream.pipe(uploadStream);
+      } catch (err) {
+        reject(err);
+      }
     });
-  };
+  }
 
-  destroy = async (publicId: string) => {
+  async destroy(publicId: string): Promise<void> {
     if (!publicId) return;
     await cloudinary.uploader.destroy(publicId, { resource_type: "image" });
-  };
+  }
 }
