@@ -11,13 +11,7 @@ export class AuthMiddleware {
     next: NextFunction
   ) => {
     try {
-      const authHeader = req.headers.authorization;
-
-      if (!authHeader) {
-        return errHandle(res, "Authorization header is missing.", 401);
-      }
-
-      const token = authHeader.split(" ")[1];
+      const token = req.cookies?.token;
       if (!token) {
         return errHandle(res, "Token is missing.", 401);
       }

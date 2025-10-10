@@ -2,7 +2,7 @@ import bcrypt from "bcrypt";
 import { JwtPayload, sign, SignOptions, verify } from "jsonwebtoken";
 import { $Enums } from "../../../../generated/prisma";
 import { ApiError } from "../../../../shared/utils/api-error";
-import { MailTokenService } from "../../../../shared/utils/mail/mail-token-utils";
+import { MailTokenService } from "../../../../shared/utils/mail/mail-token-service";
 import { UserRepository } from "../../user/repository/user-repository";
 import { LoginDTO, RegisterDTO } from "../dto/auth-dto";
 import { AuthRepository } from "../repositories/auth-repository";

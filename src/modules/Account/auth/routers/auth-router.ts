@@ -1,10 +1,12 @@
 import { Router } from "express";
 import { forgotPasswordLimiter } from "../../../../shared/middleware/rate-limit-middleware";
 import { AuthController } from "../controllers/auth-controller";
+import { AuthMiddleware } from "../../../../shared/middleware/auth-middleware";
 
 export class AuthRouter {
   private router = Router();
   private authController = new AuthController();
+  private authMiddleware = new AuthMiddleware();
 
   constructor() {
     this.initializeRoutes();
@@ -18,11 +20,17 @@ export class AuthRouter {
       this.authController.registerTenant
     );
 
-    // ---------- Login ----------
+    // ---------- Login & Logout----------
     this.router.post(
       "/auth/login",
       // loginLimiter,
       this.authController.login
+    );
+
+    this.router.post(
+      "/auth/logout",
+      this.authMiddleware.authenticate,
+      this.authController.logout
     );
 
     // ---------- Email Verification ----------

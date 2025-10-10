@@ -1,3 +1,4 @@
+import cookieParser from "cookie-parser";
 import cors from "cors";
 import dotenv from "dotenv";
 import express, { Application } from "express";
@@ -33,6 +34,7 @@ export class App {
     };
     this.app.use(cors(corsOptions));
     this.app.use(express.json());
+    this.app.use(cookieParser());
 
     this.initializeRoutes();
     this.setupGracefulShutdown();

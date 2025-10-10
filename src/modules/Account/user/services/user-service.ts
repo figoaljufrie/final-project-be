@@ -1,7 +1,7 @@
 // modules/user/services/user-service.ts
 import bcrypt from "bcrypt";
 import { ApiError } from "../../../../shared/utils/api-error";
-import { MailTokenService } from "../../../../shared/utils/mail/mail-token-utils";
+import { MailTokenService } from "../../../../shared/utils/mail/mail-token-service";
 import { UserDTO } from "../dto/user-dto";
 import { UserRepository } from "../repository/user-repository";
 
