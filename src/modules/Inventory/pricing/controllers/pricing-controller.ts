@@ -20,7 +20,6 @@ export class PricingController {
       if (!roomId) throw new Error("Invalid Room ID.");
 
       const payload: SetAvailabilityBodyDto = req.body;
-      // The payload structure matches the DTO the service now expects (which includes date: string)
       const result = await this.availabilityService.setAvailability(
         roomId,
         payload

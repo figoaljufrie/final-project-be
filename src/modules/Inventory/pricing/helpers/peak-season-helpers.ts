@@ -70,10 +70,9 @@ export class PeakSeasonAvailabilityApplier {
       allAvailability as RoomAvailabilityDto[]
     );
 
-    // FIX N+1: Fetch ALL relevant peak seasons for THIS TENANT in ONE query.
     const RelevantPeakSeasons =
       await this.peakSeasonRepository.findRelevantPeakSeasonsForTenantRange(
-        peakSeason.tenantId, // <-- Crucially scoped to the current tenant
+        peakSeason.tenantId,
         rangeStart,
         rangeEnd
       );

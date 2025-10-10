@@ -57,8 +57,8 @@ export class PeakSeasonService {
     const data: PeakSeasonRepoCreateDto = {
       tenantId,
       name: payload.name,
-      startDate: startDate,
-      endDate: endDate,
+      startDate,
+      endDate,
       changeType: payload.changeType,
       changeValue: payload.changeValue,
       applyToAllProperties: payload.applyToAllProperties,
@@ -70,7 +70,6 @@ export class PeakSeasonService {
     );
 
     await this.peakSeasonApplier.applyChanges(createdPeakSeason);
-
     return createdPeakSeason;
   }
 
@@ -166,32 +165,38 @@ export class PeakSeasonService {
     startDate: Date,
     endDate: Date
   ) {
+    const property = await this.propertyRepository.findById(propertyId);
+    const tenantId = property?.tenantId;
     return this.peakSeasonRepository.findActivePeakSeasonsForPropertyRange(
       propertyId,
       startDate,
-      endDate
+      endDate,
+      tenantId
     ) as Promise<PeakSeasonDto[]>;
   }
-
   public async findPeakSeasonsForPropertyRange(
     propertyId: number,
     startDate: Date,
     endDate: Date
   ) {
+    const property = await this.propertyRepository.findById(propertyId);
+    const tenantId = property?.tenantId;
     return this.peakSeasonRepository.findForPropertyInRange(
       propertyId,
       startDate,
-      endDate
+      endDate,
+      tenantId
     );
   }
-
   public async findAllRelevantPeakSeasonsForRange(
     startDate: Date,
-    endDate: Date
+    endDate: Date,
+    tenantId?: number
   ): Promise<PeakSeasonDto[]> {
     return this.peakSeasonRepository.findAllRelevantPeakSeasonsForRange(
       startDate,
-      endDate
+      endDate,
+      tenantId
     ) as Promise<PeakSeasonDto[]>;
   }
 

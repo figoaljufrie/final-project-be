@@ -208,6 +208,7 @@ export class PropertyService {
     const dateRange = getDateRange(startDate, endDate, true);
 
     const [peakSeasons, availabilityData] = await Promise.all([
+      // service scopes peak seasons to the property's tenant
       this.peakSeasonService.findActivePeakSeasonsForProperty(
         propertyId,
         startDate,

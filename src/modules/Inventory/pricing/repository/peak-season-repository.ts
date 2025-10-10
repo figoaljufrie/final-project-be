@@ -1,4 +1,3 @@
-import { start } from "repl";
 import { PeakSeason, Prisma } from "../../../../generated/prisma";
 import { prisma } from "../../../../shared/utils/prisma";
 
@@ -32,7 +31,6 @@ export class PeakSeasonRepository {
     });
   }
 
-  // Method for single-day lookups (used by Applier, kept for backward compatibility if needed)
   public async findActivePeakSeasonsForProperty(
     propertyId: number,
     date: Date
@@ -48,15 +46,15 @@ export class PeakSeasonRepository {
       },
     });
   }
-
-  // Method to find all peak seasons active within a date range for a specific property (Used by PropertyService)
   public async findActivePeakSeasonsForPropertyRange(
     propertyId: number,
     startDate: Date,
-    endDate: Date
+    endDate: Date,
+    tenantId?: number
   ): Promise<PeakSeason[]> {
     return prisma.peakSeason.findMany({
       where: {
+        ...(tenantId ? { tenantId } : {}),
         startDate: { lte: endDate },
         endDate: { gte: startDate },
         OR: [
@@ -67,13 +65,14 @@ export class PeakSeasonRepository {
     });
   }
 
-  // NEW/CORRECT: Method for public search - fetches ALL peak seasons active in the range (Used by PropertySearcher)
   public async findAllRelevantPeakSeasonsForRange(
     startDate: Date,
-    endDate: Date
+    endDate: Date,
+    tenantId?: number
   ): Promise<PeakSeason[]> {
     return prisma.peakSeason.findMany({
       where: {
+        ...(tenantId ? { tenantId } : {}),
         startDate: { lte: endDate },
         endDate: { gte: startDate },
       },
@@ -98,55 +97,52 @@ export class PeakSeasonRepository {
     tenantId: number,
     startDate: Date,
     endDate: Date,
-    propertyIds: number[] | undefined,
+    propertyIds: number[] = [],
     applyToAllProperties: boolean,
-    exludeId?: number
+    excludeId?: number
   ): Promise<boolean> {
-    const s = new Date(startDate);
-    s.setHours(0, 0, 0, 0);
-    const e = new Date(endDate);
-    e.setHours(0, 0, 0, 0);
+    // Build a clean where clause dynamically
+    const where: Prisma.PeakSeasonWhereInput = {
+      tenantId,
+      OR: [
+        {
+          startDate: { lte: endDate },
+          endDate: { gte: startDate },
+        },
+      ],
+    };
 
-    const dateOverlapClause = {
-      tenantId: tenantId,
-      startDate: { lte: e },
-      endDate: { gte: s },
-    } as any;
-
-    const candidates = await prisma.peakSeason.findMany({
-      where: {
-        ...dateOverlapClause,
-        ...(exludeId ? { id: { not: exludeId } } : {}),
-      },
-    });
-
-    if (!candidates || candidates.length === 0) return false;
-    if (applyToAllProperties) {
-      return candidates.length > 0;
+    if (excludeId) {
+      where.id = { not: excludeId };
     }
 
-    const incomingSet = new Set((propertyIds || []).map((p) => Number(p)));
+    const overlappingSeasons = await prisma.peakSeason.findMany({ where });
 
-    for (const cand of candidates) {
-      if (cand.applyToAllProperties) {
+    for (const season of overlappingSeasons) {
+      if (applyToAllProperties || season.applyToAllProperties) {
         return true;
       }
 
-      const candProps: number[] = (cand.propertyIds as number[]) || [];
-      for (const p of candProps) {
-        if (incomingSet.has(Number(p))) return true;
+      const commonProps = season.propertyIds.filter((id) =>
+        propertyIds.includes(id)
+      );
+      if (commonProps.length > 0) {
+        return true;
       }
     }
+
     return false;
   }
 
   public async findForPropertyInRange(
     propertyId: number,
     startDate: Date,
-    endDate: Date
+    endDate: Date,
+    tenantId?: number
   ): Promise<PeakSeason[]> {
     return prisma.peakSeason.findMany({
       where: {
+        ...(tenantId ? { tenantId } : {}),
         startDate: { lte: endDate },
         endDate: { gte: startDate },
         OR: [
