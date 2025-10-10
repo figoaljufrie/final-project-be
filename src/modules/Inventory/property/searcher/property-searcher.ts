@@ -29,7 +29,6 @@ export class PropertySearcher {
   private availabilityService: AvailabilityService;
   private peakSeasonService: PeakSeasonService;
 
-  // Updated constructor to accept PeakSeasonService
   constructor(
     propertyRepository: PropertyRepository,
     availabilityService: AvailabilityService,
@@ -40,7 +39,6 @@ export class PropertySearcher {
     this.peakSeasonService = peakSeasonService;
   }
 
-  // Updated signature to accept tenantId
   public async search(params: PropertySearchQueryDto) {
     const { skip, limit: take } = paginate(params.page, params.limit);
 
@@ -113,7 +111,6 @@ export class PropertySearcher {
     };
   }
 
-  // Updated signature to accept tenantId
   private async filterAndPriceProperties(
     properties: PropertyListItemDto[],
     checkInDate: Date,
@@ -125,7 +122,6 @@ export class PropertySearcher {
     const dateRange = getDateRange(checkInDate, checkOutDate, false);
 
     const [peakSeasons, allAvailability] = await Promise.all([
-      // Use the new PeakSeasonService method
       this.peakSeasonService.findAllRelevantPeakSeasonsForRange(
         checkInDate,
         checkOutDate
@@ -141,11 +137,15 @@ export class PropertySearcher {
     const availableProperties: PropertyListItemDto[] = [];
 
     for (const prop of properties) {
-      const relevantPeakSeasons: PeakSeasonDto[] = peakSeasons.filter(
-        (ps) =>
-          ps.applyToAllProperties ||
-          (ps.propertyIds as number[]).includes(prop.id)
-      );
+      const relevantPeakSeasons: PeakSeasonDto[] = peakSeasons
+        .filter(
+          (ps) =>
+            ps.applyToAllProperties ||
+            (ps.propertyIds as number[]).includes(prop.id)
+        )
+        .filter((ps) => {
+          return (ps as any).tenantId === (prop as any).tenantId;
+        });
 
       let lowestDynamicPrice = Infinity;
       let propertyAvailable = false;

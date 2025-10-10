@@ -24,20 +24,17 @@ export interface ValidatedPeakSeasonDates {
 export function getDateRange(
   start: Date,
   end: Date,
-  inclusive: boolean = false
+  inclusive: boolean = true
 ): Date[] {
   const dates = [];
-  let date = new Date(start.getTime());
+  const date = new Date(start);
   date.setHours(0, 0, 0, 0);
 
-  const endOfDay = new Date(end.getTime());
+  const endOfDay = new Date(end);
   endOfDay.setHours(0, 0, 0, 0);
 
-  while (
-    date < endOfDay ||
-    (inclusive && date.getTime() === endOfDay.getTime())
-  ) {
-    dates.push(new Date(date.getTime()));
+  while (date <= endOfDay) {
+    dates.push(new Date(date));
     date.setDate(date.getDate() + 1);
   }
   return dates;
@@ -67,8 +64,6 @@ export function calculateAvailabilityUpdate(
 
   let reason: string | null = null;
   if (activePeakSeasons.length > 0) {
-    // FIX: Using non-null assertion operator (!) to guarantee to TypeScript
-    // that the element exists after the length check.
     const lastPeakSeason = activePeakSeasons[activePeakSeasons.length - 1]!;
     reason = `Peak Season: ${lastPeakSeason.name}`;
   }
@@ -78,6 +73,13 @@ export function calculateAvailabilityUpdate(
     customPrice: calculatedResult.price,
     reason,
   };
+}
+
+function toLocalMidnight(date: Date): Date {
+  const adjusted = new Date(date);
+  adjusted.setMinutes(adjusted.getMinutes() - adjusted.getTimezoneOffset());
+  adjusted.setHours(0, 0, 0, 0);
+  return adjusted;
 }
 
 export async function validatePeakSeasonPayload(
@@ -112,8 +114,8 @@ export async function validatePeakSeasonPayload(
     }
   }
 
-  startDate.setHours(0, 0, 0, 0);
-  endDate.setHours(0, 0, 0, 0);
+  const localStart = toLocalMidnight(startDate);
+  const localEnd = toLocalMidnight(endDate);
 
-  return { startDate, endDate };
+  return { startDate: localStart, endDate: localEnd };
 }

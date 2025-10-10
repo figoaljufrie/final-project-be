@@ -41,11 +41,9 @@ export class PricingRouter {
       "/properties/:propertyId/rooms/:roomId/availability/day",
       this.controller.getAvailabilityByDate
     );
-
     this.router.post(
-      "/properties/:propertyId/peakseasons",
+      "/tenant/peakseasons",
       ...tenantAccess,
-      this.ownershipMiddleware.checkPropertyOwnership,
       this.controller.createPeakSeason
     );
 
@@ -56,21 +54,17 @@ export class PricingRouter {
     );
 
     this.router.patch(
-      "/properties/:propertyId/peakseasons/:id",
+      "/tenant/peakseasons/:id",
       ...tenantAccess,
-      this.ownershipMiddleware.checkPropertyOwnership,
       this.controller.updatePeakSeason
     );
 
-    // Delete a peak season
     this.router.delete(
-      "/properties/:propertyId/peakseasons/:id",
+      "/tenant/peakseasons/:id",
       ...tenantAccess,
-      this.ownershipMiddleware.checkPropertyOwnership,
       this.controller.deletePeakSeason
     );
 
-    //Public:
     this.router.get(
       "/properties/:propertyId/peakseasons",
       this.controller.getPeakSeasonsForPropertyRange
