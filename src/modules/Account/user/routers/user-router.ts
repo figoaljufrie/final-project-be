@@ -19,6 +19,16 @@ export class UserRouter {
   }
 
   private initializeRoutes() {
+    // ⚠️ IMPORTANT: Put specific routes BEFORE parameterized routes
+
+    // GET /users/me - must come BEFORE /users/:id
+    this.router.get(
+      "/users/me",
+      this.authMiddleware.authenticate,
+      this.userController.getMe
+    );
+
+    // GET /users - list all users
     this.router.get(
       "/users",
       this.authMiddleware.authenticate,
@@ -26,6 +36,7 @@ export class UserRouter {
       this.userController.getAll
     );
 
+    // GET /users/:id - must come AFTER /users/me
     this.router.get(
       "/users/:id",
       this.authMiddleware.authenticate,
@@ -33,12 +44,7 @@ export class UserRouter {
       this.userController.findById
     );
 
-    this.router.get(
-      "/users/me",
-      this.authMiddleware.authenticate,
-      this.userController.getMe
-    );
-
+    // PATCH routes
     this.router.patch(
       "/users/update-email",
       this.authMiddleware.authenticate,
@@ -77,6 +83,7 @@ export class UserRouter {
       this.userController.softDeleteUser
     );
 
+    // DELETE routes
     this.router.delete(
       "/users",
       this.authMiddleware.authenticate,

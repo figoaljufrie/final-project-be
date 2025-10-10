@@ -41,30 +41,48 @@ export class AuthController {
   };
 
   public login = async (req: Request, res: Response) => {
+  try {
+    const result = await this.authService.login(req.body);
+
+    res.cookie("token", result.accessToken, {
+      httpOnly: true,
+      secure: false,
+      sameSite: "lax", // CHANGED FROM "none" TO "lax"
+      maxAge: 2 * 60 * 60 * 1000,
+    });
+    
+    return succHandle(res, "Login successful", { user: result.user }, 200);
+  } catch (err) {
+    return errHandle(res, "Login failed", 401, (err as Error).message);
+  }
+};
+
+  public logout = async (req: Request, res: Response) => {
     try {
-      const result = await this.authService.login(req.body);
-      return succHandle(res, "Login successful", result, 200);
+      res.clearCookie("token", {
+        httpOnly: true,
+        secure: false, //dev only, for prod req. true
+        sameSite: "lax",
+      });
+
+      return succHandle(res, "Logout successful", null, 200);
     } catch (err) {
-      return errHandle(res, "Login failed", 401, (err as Error).message);
+      return errHandle(res, "Logout failed", 400, (err as Error).message);
     }
   };
 
-  // ✅ verify email & set password with Bearer token
   public verifyEmailAndSetPassword = async (req: Request, res: Response) => {
     try {
-      const authHeader = req.headers.authorization;
-      if (!authHeader || !authHeader.startsWith("Bearer ")) {
-        return errHandle(res, "Authorization token missing", 401);
-      }
+      const token = req.cookies.token;
+      if (!token) return errHandle(res, "Authorization token missing", 401);
 
-      const token = authHeader.split(" ")[1];
       const { password } = req.body;
       if (!password) return errHandle(res, "Password is required", 400);
 
       const hashedPassword = await bcrypt.hash(password, 10);
 
       const result = await this.authService.verifyTokenAndUpdate(
-        token as string,
+        token,
         $Enums.VerificationTokenType.email_verification,
         { isEmailVerified: true, password: hashedPassword }
       );
@@ -75,18 +93,13 @@ export class AuthController {
     }
   };
 
-  // ✅ verify email with Bearer token
   public verifyEmail = async (req: Request, res: Response) => {
     try {
-      const authHeader = req.headers.authorization;
-      if (!authHeader || !authHeader.startsWith("Bearer ")) {
-        return errHandle(res, "Authorization token missing", 401);
-      }
-
-      const token = authHeader.split(" ")[1];
+      const token = req.cookies.token;
+      if (!token) return errHandle(res, "Authorization token missing", 401);
 
       const result = await this.authService.verifyTokenAndUpdate(
-        token as string,
+        token,
         $Enums.VerificationTokenType.email_verification,
         { isEmailVerified: true }
       );
@@ -127,22 +140,18 @@ export class AuthController {
     }
   };
 
-  // ✅ reset password with Bearer token
   public resetPassword = async (req: Request, res: Response) => {
     try {
-      const authHeader = req.headers.authorization;
-      if (!authHeader || !authHeader.startsWith("Bearer ")) {
-        return errHandle(res, "Authorization token missing", 401);
-      }
+      const token = req.cookies.token;
+      if (!token) return errHandle(res, "Authorization token missing", 401);
 
-      const token = authHeader.split(" ")[1];
       const { newPassword } = req.body;
       if (!newPassword) return errHandle(res, "New password is required", 400);
 
       const hashedPassword = await bcrypt.hash(newPassword, 10);
 
       const result = await this.authService.verifyTokenAndUpdate(
-        token as string,
+        token,
         $Enums.VerificationTokenType.password_reset,
         { password: hashedPassword }
       );
