@@ -13,11 +13,12 @@ export class BookingUtils {
     const deadline = new Date();
     
     if (paymentMethod === 'manual_transfer') {
-      // Manual transfer: 1 hour deadline
-      deadline.setHours(deadline.getHours() + 1);
+      // Manual transfer: 2 hours deadline (Feature 2 compliance)
+      deadline.setHours(deadline.getHours() + 2);
     } else if (paymentMethod === 'payment_gateway') {
-      // Payment gateway: 24 hours deadline (Midtrans standard)
-      deadline.setHours(deadline.getHours() + 24);
+      // Payment gateway: 2 hours deadline (Feature 2 compliance)
+      // Note: Midtrans will still expire after 24 hours, but our system auto-cancels after 2 hours
+      deadline.setHours(deadline.getHours() + 2);
     }
     
     return deadline;
