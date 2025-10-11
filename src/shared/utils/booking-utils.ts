@@ -9,18 +9,20 @@ export class BookingUtils {
   }
 
   // Get payment deadline based on payment method
-  static getPaymentDeadline(paymentMethod: 'manual_transfer' | 'payment_gateway'): Date {
+  static getPaymentDeadline(
+    paymentMethod: "manual_transfer" | "payment_gateway"
+  ): Date {
     const deadline = new Date();
-    
-    if (paymentMethod === 'manual_transfer') {
-      // Manual transfer: 2 hours deadline (Feature 2 compliance)
-      deadline.setHours(deadline.getHours() + 2);
-    } else if (paymentMethod === 'payment_gateway') {
-      // Payment gateway: 2 hours deadline (Feature 2 compliance)
-      // Note: Midtrans will still expire after 24 hours, but our system auto-cancels after 2 hours
-      deadline.setHours(deadline.getHours() + 2);
+
+    if (paymentMethod === "manual_transfer") {
+      // Manual transfer: 1 hour deadline (Feature 2 compliance)
+      deadline.setHours(deadline.getHours() + 1);
+    } else if (paymentMethod === "payment_gateway") {
+      // Payment gateway: 1 hour deadline (Feature 2 compliance)
+      // Note: Midtrans will still expire after 24 hours, but our system auto-cancels after 1 hour
+      deadline.setHours(deadline.getHours() + 1);
     }
-    
+
     return deadline;
   }
 
@@ -28,12 +30,12 @@ export class BookingUtils {
   static getDateRange(startDate: Date, endDate: Date): Date[] {
     const dates: Date[] = [];
     const currentDate = new Date(startDate);
-    
+
     while (currentDate < endDate) {
       dates.push(new Date(currentDate));
       currentDate.setDate(currentDate.getDate() + 1);
     }
-    
+
     return dates;
   }
 
