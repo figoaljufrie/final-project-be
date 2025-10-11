@@ -2,14 +2,14 @@ import { prisma } from "../../../shared/utils/prisma";
 import { BookingStatus } from "../../../generated/prisma";
 
 export class CronRepository {
-  // Get expired bookings for auto-cancel (Feature 2: 2 hours for all payment methods)
+  // Get expired bookings for auto-cancel (Feature 2: 1 hour for all payment methods)
   async getExpiredBookings() {
-    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000);
-    
+    const oneHourAgo = new Date(Date.now() - 1 * 60 * 60 * 1000);
+
     return await prisma.booking.findMany({
       where: {
         status: BookingStatus.waiting_for_payment,
-        paymentDeadline: { lt: twoHoursAgo }
+        paymentDeadline: { lt: oneHourAgo },
       },
       include: {
         user: {
@@ -137,7 +137,12 @@ export class CronRepository {
   }
 
   // Auto-cancel booking with transaction
-  async autoCancelBooking(bookingId: number, dates: Date[], roomId: number, unitCount: number) {
+  async autoCancelBooking(
+    bookingId: number,
+    dates: Date[],
+    roomId: number,
+    unitCount: number
+  ) {
     return await prisma.$transaction(async (tx) => {
       // Update booking status
       const updatedBooking = await tx.booking.update({
