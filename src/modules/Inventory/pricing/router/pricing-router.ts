@@ -4,7 +4,13 @@ import { AuthMiddleware } from "../../../../shared/middleware/auth-middleware";
 import { JWTMiddleware } from "../../../../shared/middleware/jwt-middleware";
 import { OwnershipMiddleware } from "../../../../shared/middleware/ownership-middleware";
 import { RBACMiddleware } from "../../../../shared/middleware/rbac-middleware";
+import { validate } from "../../../../shared/middleware/validate-middleware";
 import { PricingController } from "../controllers/pricing-controller";
+import { setAvailabilityValidator } from "../validators/availability-validators";
+import {
+  createPeakSeasonValidator,
+  updatePeakSeasonValidator,
+} from "../validators/peak-season-validators";
 
 export class PricingRouter {
   private router = Router();
@@ -29,6 +35,7 @@ export class PricingRouter {
       "/properties/:propertyId/rooms/:roomId/availability",
       ...tenantAccess,
       this.ownershipMiddleware.checkRoomOwnership,
+      validate(setAvailabilityValidator),
       this.controller.setAvailability
     );
 
@@ -41,9 +48,11 @@ export class PricingRouter {
       "/properties/:propertyId/rooms/:roomId/availability/day",
       this.controller.getAvailabilityByDate
     );
+
     this.router.post(
       "/tenant/peakseasons",
       ...tenantAccess,
+      validate(createPeakSeasonValidator),
       this.controller.createPeakSeason
     );
 
@@ -56,6 +65,7 @@ export class PricingRouter {
     this.router.patch(
       "/tenant/peakseasons/:id",
       ...tenantAccess,
+      validate(updatePeakSeasonValidator),
       this.controller.updatePeakSeason
     );
 

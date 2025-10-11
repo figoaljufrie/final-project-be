@@ -15,6 +15,9 @@ import { ReportRoutes } from "./modules/report/routers/report.routes";
 import { ReviewRoutes } from "./modules/review/routers/review.routes";
 import { TenantBookingRoutes } from "./modules/tenant/tenant-booking-status/routers/tenant-booking-status.routes";
 import { prisma } from "./shared/utils/prisma";
+import { redisClient } from "./shared/utils/redis/redis";
+import { cacheManager } from "./shared/utils/redis/cache-manager";
+
 dotenv.config();
 
 export class App {
@@ -26,7 +29,7 @@ export class App {
     this.app = express();
     this.port = port;
 
-    //cors - setup:
+    // CORS setup
     const corsOptions = {
       origin: "http://localhost:3000",
       methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
@@ -45,72 +48,133 @@ export class App {
       res.json({ message: "Nginepin API is running!" });
     });
 
-    // booking routes
+    // ✅ Health check endpoint with Redis status
+    this.app.get("/health", async (req, res) => {
+      try {
+        const redisHealthy = await redisClient.ping();
+        const cacheStats = await cacheManager.getStats();
+
+        res.json({
+          status: "ok",
+          timestamp: new Date().toISOString(),
+          redis: {
+            connected: redisHealthy,
+            ...cacheStats,
+          },
+          database: "connected",
+        });
+      } catch (error) {
+        res.status(503).json({
+          status: "error",
+          timestamp: new Date().toISOString(),
+          redis: {
+            connected: false,
+          },
+          error: "Service unavailable",
+        });
+      }
+    });
+
+    // Booking routes
     this.app.use("/api/bookings", new BookingRoutes().getRouter());
 
-    // tenant booking routes
+    // Tenant booking routes
     this.app.use("/api/tenant/bookings", new TenantBookingRoutes().getRouter());
 
-    // payment gateway route (including webhook)
+    // Payment gateway route (including webhook)
     this.app.use("/api/payment", new PaymentRoutes().router);
 
-    // review routes
+    // Review routes
     this.app.use("/api/reviews", new ReviewRoutes().getRouter());
 
-    // report routes
+    // Report routes
     this.app.use("/api/reports", new ReportRoutes().getRouter());
 
-    //User & Auth:
+    // User & Auth
     this.app.use("/api", new UserRouter().getRouter());
     this.app.use("/api", new AuthRouter().getRouter());
-
     this.app.use("/api", new OAuthRouter().getRouter());
 
-    //property routes:
+    // Property routes
     this.app.use("/api", new PropertyRouter().getRouter());
 
-    //room Routes:
+    // Room routes
     this.app.use("/api", new RoomRouter().getRouter());
 
-    //pricing Routes:
+    // Pricing routes
     this.app.use("/api", new PricingRouter().getRouter());
   }
 
-  // cron service setup for testing purpose
   private setupGracefulShutdown() {
-    // Graceful shutdown
+    // Graceful shutdown for SIGINT (Ctrl+C)
     process.on("SIGINT", async () => {
-      console.log("Shutting down server...");
-      this.cronService.stopAllTasks();
-      await prisma.$disconnect();
-      process.exit(0);
+      console.log("\n🔄 Shutting down server gracefully...");
+      await this.shutdown();
     });
 
+    // Graceful shutdown for SIGTERM (deployment/restart)
     process.on("SIGTERM", async () => {
-      console.log("Shutting down server...");
-      this.cronService.stopAllTasks();
-      await prisma.$disconnect();
-      process.exit(0);
+      console.log("\n🔄 Shutting down server gracefully...");
+      await this.shutdown();
     });
   }
 
-  public listen() {
-    this.app.listen(this.port, () => {
-      console.log(`Server is running on http://localhost:${this.port}`);
-      this.startCronJobs();
-    });
+  private async shutdown() {
+    try {
+      this.cronService.stopAllTasks();
+
+      await redisClient.disconnect();
+
+      await prisma.$disconnect();
+
+      process.exit(0);
+    } catch (error) {
+      process.exit(1);
+    }
+  }
+
+  public async listen() {
+    try {
+      await redisClient.connect();
+      console.log("Redis connected successfully");
+
+      this.app.listen(this.port, () => {
+        console.log(`Server is running on http://localhost:${this.port}`);
+        console.log(`Health check: http://localhost:${this.port}/health`);
+        this.startCronJobs();
+      });
+    } catch (error) {
+      console.error("Failed to start server:", error);
+
+      if (process.env.CACHE_ENABLED === "true") {
+        console.warn("⚠️  Server will continue without caching");
+
+        this.app.listen(this.port, () => {
+          console.log(
+            `🚀 Server is running on http://localhost:${this.port} (without cache)`
+          );
+          this.startCronJobs();
+        });
+      } else {
+        console.error("❌ Cannot start server");
+        process.exit(1);
+      }
+    }
   }
 
   // Start automatic cron jobs
   private startCronJobs() {
     // Auto-cancel expired bookings every 5 minutes (only for manual transfer bookings)
-    setInterval(async () => {
-      try {
-        await this.cronService.triggerAutoCancelExpiredBookings();
-      } catch (error) {
-        console.error("Error in auto-cancel cron job:", error);
-      }
-    }, 300000); // Every 5 minutes
+    setInterval(
+      async () => {
+        try {
+          await this.cronService.triggerAutoCancelExpiredBookings();
+        } catch (error) {
+          console.error("Error in auto-cancel cron job:", error);
+        }
+      },
+      300000 // Every 5 minutes
+    );
   }
 }
 

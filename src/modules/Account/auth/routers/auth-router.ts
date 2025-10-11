@@ -1,7 +1,16 @@
 import { Router } from "express";
-import { forgotPasswordLimiter } from "../../../../shared/middleware/rate-limit-middleware";
-import { AuthController } from "../controllers/auth-controller";
 import { AuthMiddleware } from "../../../../shared/middleware/auth-middleware";
+import { forgotPasswordLimiter } from "../../../../shared/middleware/rate-limit-middleware";
+import { validate } from "../../../../shared/middleware/validate-middleware";
+import { AuthController } from "../controllers/auth-controller";
+import {
+  forgotPasswordSchema,
+  loginSchema,
+  registerSchema,
+  resendVerificationSchema,
+  resetPasswordSchema,
+  verifyEmailAndSetPasswordSchema,
+} from "../validators/auth-validator";
 
 export class AuthRouter {
   private router = Router();
@@ -14,16 +23,22 @@ export class AuthRouter {
 
   private initializeRoutes() {
     // ---------- Registration ----------
-    this.router.post("/auth/register", this.authController.registerUser);
+    this.router.post(
+      "/auth/register",
+      validate(registerSchema),
+      this.authController.registerUser
+    );
+
     this.router.post(
       "/auth/register-tenant",
+      validate(registerSchema),
       this.authController.registerTenant
     );
 
-    // ---------- Login & Logout----------
+    // ---------- Login & Logout ----------
     this.router.post(
       "/auth/login",
-      // loginLimiter,
+      validate(loginSchema),
       this.authController.login
     );
 
@@ -35,13 +50,17 @@ export class AuthRouter {
 
     // ---------- Email Verification ----------
     this.router.post("/auth/verify-email", this.authController.verifyEmail);
+
     this.router.post(
       "/auth/verify-email-set-password",
+      validate(verifyEmailAndSetPasswordSchema),
       this.authController.verifyEmailAndSetPassword
     );
+
     this.router.post(
       "/auth/resend-verification",
       forgotPasswordLimiter,
+      validate(resendVerificationSchema),
       this.authController.resendVerificationEmail
     );
 
@@ -49,9 +68,15 @@ export class AuthRouter {
     this.router.post(
       "/auth/forgot-password",
       forgotPasswordLimiter,
+      validate(forgotPasswordSchema),
       this.authController.forgotPassword
     );
-    this.router.post("/auth/reset-password", this.authController.resetPassword);
+
+    this.router.post(
+      "/auth/reset-password",
+      validate(resetPasswordSchema),
+      this.authController.resetPassword
+    );
   }
 
   public getRouter() {

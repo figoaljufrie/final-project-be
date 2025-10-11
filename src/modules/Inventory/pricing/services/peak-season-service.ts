@@ -1,5 +1,7 @@
 import { Prisma } from "../../../../generated/prisma";
+import { CacheKeys } from "../../../../shared/helpers/cache-keys";
 import { ApiError } from "../../../../shared/utils/api-error";
+import { cacheManager } from "../../../../shared/utils/redis/cache-manager";
 import { PropertyRepository } from "../../property/repository/property-repository";
 import { RoomRepository } from "../../room/repository/room-repository";
 import {
@@ -70,11 +72,24 @@ export class PeakSeasonService {
     );
 
     await this.peakSeasonApplier.applyChanges(createdPeakSeason);
+
+    // ✅ FIX: Ensure propertyIds is always an array
+    await this.invalidatePeakSeasonCaches(tenantId, payload.propertyIds || []);
+
     return createdPeakSeason;
   }
 
   public async listPeakSeasonsByTenant(tenantId: number) {
-    return this.peakSeasonRepository.findPeakSeasonByTenant(tenantId);
+    const cacheKey = CacheKeys.peakSeasonsTenant(tenantId);
+
+    return cacheManager.getOrSet(
+      cacheKey,
+      async () => {
+        console.log("⚙️ Fetching peak seasons from database...");
+        return await this.peakSeasonRepository.findPeakSeasonByTenant(tenantId);
+      },
+      1800
+    );
   }
 
   public async updatePeakSeason(
@@ -135,6 +150,12 @@ export class PeakSeasonService {
 
     await this.peakSeasonApplier.applyChanges(updatedPeakSeason, existing);
 
+    // ✅ FIX: Ensure propertyIds is always an array
+    const affectedPropertyIds = [
+      ...(payload.propertyIds || existing.propertyIds),
+    ];
+    await this.invalidatePeakSeasonCaches(tenantId, affectedPropertyIds);
+
     return updatedPeakSeason;
   }
 
@@ -157,6 +178,9 @@ export class PeakSeasonService {
       true
     );
 
+    // ✅ No change needed here - existing.propertyIds is already number[]
+    await this.invalidatePeakSeasonCaches(tenantId, existing.propertyIds);
+
     return { message: "Peak season deleted successfully." };
   }
 
@@ -174,6 +198,7 @@ export class PeakSeasonService {
       tenantId
     ) as Promise<PeakSeasonDto[]>;
   }
+
   public async findPeakSeasonsForPropertyRange(
     propertyId: number,
     startDate: Date,
@@ -188,6 +213,7 @@ export class PeakSeasonService {
       tenantId
     );
   }
+
   public async findAllRelevantPeakSeasonsForRange(
     startDate: Date,
     endDate: Date,
@@ -210,5 +236,37 @@ export class PeakSeasonService {
       startDate,
       endDate
     ) as Promise<PeakSeasonDto[]>;
+  }
+
+  private async invalidatePeakSeasonCaches(
+    tenantId: number,
+    propertyIds: number[]
+  ): Promise<void> {
+    try {
+      await cacheManager.delete(CacheKeys.peakSeasonsTenant(tenantId));
+
+      await cacheManager.deletePattern(
+        CacheKeys.patterns.allPeakSeasonsCache(tenantId)
+      );
+
+      for (const propertyId of propertyIds) {
+        await cacheManager.deletePattern(
+          CacheKeys.patterns.allPropertyCache(propertyId)
+        );
+        await cacheManager.deletePattern(
+          CacheKeys.patterns.allCalendarCache(propertyId)
+        );
+      }
+
+      await cacheManager.deletePattern(
+        CacheKeys.patterns.allAvailabilityCache()
+      );
+
+      await cacheManager.deletePattern(CacheKeys.patterns.allSearchCache());
+
+      console.log(`🗑️ Invalidated peak season caches for tenant ${tenantId}`);
+    } catch (error) {
+      console.error("Cache invalidation error:", error);
+    }
   }
 }
