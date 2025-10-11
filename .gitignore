@@ -5,3 +5,5 @@ dist
 docker
 /src/generated/prisma
 firebase-admin.json
+.docker
+docker

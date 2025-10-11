@@ -1,5 +1,7 @@
+import { CacheKeys } from "../../../../shared/helpers/cache-keys";
 import { ApiError } from "../../../../shared/utils/api-error";
 import { prisma } from "../../../../shared/utils/prisma";
+import { cacheManager } from "../../../../shared/utils/redis/cache-manager";
 import { ImageService } from "../../images/services/image-service";
 import { AvailabilityRepository } from "../../pricing/repository/availability-repository";
 import { PropertyRepository } from "../../property/repository/property-repository";
@@ -40,27 +42,28 @@ export class RoomService {
       totalUnits,
     };
 
-    return prisma.$transaction(async (tx) => {
-      const createdRoom = await this.roomRepository.createWithTx(roomData, tx);
+    const createdRoom = await prisma.$transaction(async (tx) => {
+      const room = await this.roomRepository.createWithTx(roomData, tx);
 
-      // Image handling (with metadata)
+      // Image handling
       if (files && files.length > 0) {
-        await this.imageService.handleCreateImages(
-          "room",
-          createdRoom.id,
-          files
-        );
+        await this.imageService.handleCreateImages("room", room.id, files);
       }
 
       // Availability seeding
       await this.availabilityRepository.seedAvailabilityWithTx(
-        createdRoom.id,
-        createdRoom.totalUnits,
+        room.id,
+        room.totalUnits,
         tx
       );
 
-      return createdRoom;
+      return room;
     });
+
+    // Invalidate caches after room creation
+    await this.invalidateRoomCaches(payload.propertyId);
+
+    return createdRoom;
   }
 
   public async updateRoom(
@@ -78,15 +81,18 @@ export class RoomService {
       throw new ApiError("Not authorized to update this room", 403);
     }
 
-    // ✅ Update room data first
+    // Update room data
     await this.roomRepository.update(roomId, data);
 
-    // ✅ Handle images if provided
+    // Handle images if provided
     if (files && files.length > 0) {
       await this.imageService.handleUpdateImages("room", roomId, files);
     }
 
-    // ✅ CRITICAL FIX: Fetch the updated room with all relations AFTER all operations
+    // Invalidate caches
+    await this.invalidateRoomCaches(propertyId);
+
+    // Fetch updated room with all relations
     const updatedRoom = await this.roomRepository.findById(roomId);
 
     if (!updatedRoom) {
@@ -111,10 +117,57 @@ export class RoomService {
 
     await this.imageService.handleDeleteImages("room", roomId);
 
-    return this.roomRepository.softDelete(roomId);
+    const result = await this.roomRepository.softDelete(roomId);
+
+    // Invalidate caches
+    await this.invalidateRoomCaches(propertyId);
+
+    return result;
   }
 
   public async getRoomsByProperty(propertyId: number) {
-    return this.roomRepository.findByProperty(propertyId);
+    // Cache room list
+    const cacheKey = CacheKeys.roomsByProperty(propertyId);
+
+    return cacheManager.getOrSet(
+      cacheKey,
+      async () => {
+        console.log("⚙️ Fetching rooms from database...");
+        return await this.roomRepository.findByProperty(propertyId);
+      },
+      900 // 15 minutes TTL
+    );
+  }
+
+  /**
+   * Invalidate all caches related to rooms and their property
+   */
+  private async invalidateRoomCaches(propertyId: number): Promise<void> {
+    try {
+      // Invalidate rooms cache
+      await cacheManager.delete(CacheKeys.roomsByProperty(propertyId));
+
+      // Invalidate property caches (details, calendar)
+      await cacheManager.deletePattern(
+        CacheKeys.patterns.allPropertyCache(propertyId)
+      );
+
+      // Invalidate calendar cache
+      await cacheManager.deletePattern(
+        CacheKeys.patterns.allCalendarCache(propertyId)
+      );
+
+      // Invalidate search cache (room changes affect search results)
+      await cacheManager.deletePattern(CacheKeys.patterns.allSearchCache());
+
+      // Invalidate availability cache
+      await cacheManager.deletePattern(
+        CacheKeys.patterns.allAvailabilityCache()
+      );
+
+      console.log(`🗑️ Invalidated caches for property ${propertyId} rooms`);
+    } catch (error) {
+      console.error("Cache invalidation error:", error);
+    }
   }
 }

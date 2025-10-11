@@ -2,7 +2,10 @@ import {
   $Enums,
   RoomAvailability as PrismaRoomAvailability,
 } from "../../../../generated/prisma";
+import { CacheKeys } from "../../../../shared/helpers/cache-keys";
 import { ApiError } from "../../../../shared/utils/api-error";
+import { cacheManager } from "../../../../shared/utils/redis/cache-manager";
+import { cacheConfig } from "../../../../shared/utils/redis/redis-config";
 import { ImageService } from "../../images/services/image-service";
 import { PeakSeasonDto } from "../../pricing/dto/availability-dto";
 import { AvailabilityService } from "../../pricing/services/availability-service";
@@ -20,7 +23,7 @@ import {
   UpdatePropertyDto,
 } from "../dto/property-dto";
 import { PropertyRepository } from "../repository/property-repository";
-import { PropertySearcher } from "../searcher/property-searcher";
+import { PropertySearcher, SearchResult } from "../searcher/property-searcher";
 
 type RoomAvailabilityType = PrismaRoomAvailability;
 
@@ -76,6 +79,8 @@ export class PropertyService {
       );
     }
 
+    await this.invalidatePropertyCaches(property.id);
+
     return this.propertyRepository.findById(property.id);
   }
 
@@ -110,6 +115,8 @@ export class PropertyService {
       await this.imageService.handleUpdateImages("property", propertyId, files);
     }
 
+    await this.invalidatePropertyCaches(propertyId);
+
     const finalUpdatedProperty = await this.propertyRepository.findById(
       propertyId
     );
@@ -123,7 +130,12 @@ export class PropertyService {
 
   public async softDeleteProperty(propertyId: number) {
     await this.imageService.handleDeleteImages("property", propertyId);
-    return this.propertyRepository.softDelete(propertyId);
+
+    const result = await this.propertyRepository.softDelete(propertyId);
+
+    await this.invalidatePropertyCaches(propertyId);
+
+    return result;
   }
 
   public async getPropertiesByTenant(tenantId: number) {
@@ -131,6 +143,31 @@ export class PropertyService {
   }
 
   public async getPropertyDetails(
+    propertyId: number,
+    checkInDate?: Date,
+    checkOutDate?: Date
+  ) {
+    const cacheKey = CacheKeys.propertyDetails(
+      propertyId,
+      checkInDate,
+      checkOutDate
+    );
+
+    return cacheManager.getOrSet(
+      cacheKey,
+      async () => {
+        console.log("⚙️ Fetching property details from database...");
+        return await this.fetchPropertyDetails(
+          propertyId,
+          checkInDate,
+          checkOutDate
+        );
+      },
+      cacheConfig.propertyDetailsTTL
+    );
+  }
+
+  private async fetchPropertyDetails(
     propertyId: number,
     checkInDate?: Date,
     checkOutDate?: Date
@@ -187,11 +224,31 @@ export class PropertyService {
     return property;
   }
 
-  public async searchProperties(params: PropertySearchQueryDto) {
+  // ✅ FIX: Properly type the return value
+  public async searchProperties(
+    params: PropertySearchQueryDto
+  ): Promise<SearchResult> {
     return this.propertySearcher.search(params);
   }
 
   public async getPropertyCalendar(
+    propertyId: number,
+    month: number,
+    year: number
+  ) {
+    const cacheKey = CacheKeys.propertyCalendar(propertyId, month, year);
+
+    return cacheManager.getOrSet(
+      cacheKey,
+      async () => {
+        console.log("⚙️ Generating property calendar from database...");
+        return await this.generatePropertyCalendar(propertyId, month, year);
+      },
+      cacheConfig.calendarTTL
+    );
+  }
+
+  private async generatePropertyCalendar(
     propertyId: number,
     month: number,
     year: number
@@ -208,7 +265,6 @@ export class PropertyService {
     const dateRange = getDateRange(startDate, endDate, true);
 
     const [peakSeasons, availabilityData] = await Promise.all([
-      // service scopes peak seasons to the property's tenant
       this.peakSeasonService.findActivePeakSeasonsForProperty(
         propertyId,
         startDate,
@@ -260,5 +316,23 @@ export class PropertyService {
       },
       calendar: calendarData,
     };
+  }
+
+  private async invalidatePropertyCaches(propertyId: number): Promise<void> {
+    try {
+      await cacheManager.deletePattern(
+        CacheKeys.patterns.allPropertyCache(propertyId)
+      );
+
+      await cacheManager.deletePattern(
+        CacheKeys.patterns.allCalendarCache(propertyId)
+      );
+
+      await cacheManager.deletePattern(CacheKeys.patterns.allSearchCache());
+
+      console.log(`🗑️ Invalidated caches for property ${propertyId}`);
+    } catch (error) {
+      console.error("Cache invalidation error:", error);
+    }
   }
 }

@@ -5,7 +5,13 @@ import { JWTMiddleware } from "../../../../shared/middleware/jwt-middleware";
 import { OwnershipMiddleware } from "../../../../shared/middleware/ownership-middleware";
 import { RBACMiddleware } from "../../../../shared/middleware/rbac-middleware";
 import { UploaderMiddleware } from "../../../../shared/middleware/uploader-middleware";
+import { validate } from "../../../../shared/middleware/validate-middleware";
 import { RoomController } from "../controllers/room-controller";
+import {
+  createRoomSchema,
+  roomParamsSchema,
+  updateRoomSchema,
+} from "../validators/room-validators";
 
 export class RoomRouter {
   private router = Router();
@@ -32,11 +38,13 @@ export class RoomRouter {
       ...tenantAccess,
       this.ownershipMiddleware.checkPropertyOwnership,
       this.uploaderMiddleware.upload().array("images", 5),
+      validate(createRoomSchema),
       this.roomController.create
     );
 
     this.router.get(
       "/properties/:propertyId/rooms",
+      validate(roomParamsSchema),
       this.roomController.listByProperty
     );
 
@@ -45,6 +53,7 @@ export class RoomRouter {
       ...tenantAccess,
       this.ownershipMiddleware.checkPropertyOwnership,
       this.uploaderMiddleware.upload().array("images", 5),
+      validate(updateRoomSchema),
       this.roomController.update
     );
 
@@ -52,6 +61,7 @@ export class RoomRouter {
       "/properties/:propertyId/rooms/:roomId",
       ...tenantAccess,
       this.ownershipMiddleware.checkPropertyOwnership,
+      validate(roomParamsSchema),
       this.roomController.delete
     );
   }

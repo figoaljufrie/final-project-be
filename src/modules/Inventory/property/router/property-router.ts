@@ -4,8 +4,16 @@ import { AuthMiddleware } from "../../../../shared/middleware/auth-middleware";
 import { JWTMiddleware } from "../../../../shared/middleware/jwt-middleware";
 import { OwnershipMiddleware } from "../../../../shared/middleware/ownership-middleware";
 import { RBACMiddleware } from "../../../../shared/middleware/rbac-middleware";
-import { PropertyController } from "../controller/property-controller";
 import { UploaderMiddleware } from "../../../../shared/middleware/uploader-middleware";
+import { validate } from "../../../../shared/middleware/validate-middleware";
+import { PropertyController } from "../controller/property-controller";
+import {
+  createPropertySchema,
+  propertyCalendarSchema,
+  propertyIdSchema,
+  propertySearchSchema,
+  updatePropertySchema,
+} from "../validators/property-validators";
 
 export class PropertyRouter {
   private router = Router();
@@ -28,22 +36,32 @@ export class PropertyRouter {
     ];
 
     this.router.get(
+      "/properties/search",
+      validate(propertySearchSchema),
+      this.propertyController.search
+    );
+    this.router.get(
+      "/properties/:id",
+      validate(propertyIdSchema),
+      this.propertyController.getDetails
+    );
+    this.router.get(
+      "/properties/:id/calendar",
+      validate(propertyCalendarSchema),
+      this.propertyController.getCalendar
+    );
+
+    this.router.get(
       "/tenant/properties",
       ...tenantAccess,
       this.propertyController.getTenantProperties
-    );
-
-    this.router.get("/properties/search", this.propertyController.search);
-    this.router.get("/properties/:id", this.propertyController.getDetails);
-    this.router.get(
-      "/properties/:id/calendar",
-      this.propertyController.getCalendar
     );
 
     this.router.post(
       "/tenant/properties",
       ...tenantAccess,
       this.uploaderMiddleware.upload().array("images", 5),
+      validate(createPropertySchema),
       this.propertyController.create
     );
 
@@ -52,6 +70,7 @@ export class PropertyRouter {
       ...tenantAccess,
       this.ownershipMiddleware.checkPropertyOwnership,
       this.uploaderMiddleware.upload().array("images", 5),
+      validate(updatePropertySchema),
       this.propertyController.update
     );
 
@@ -59,6 +78,7 @@ export class PropertyRouter {
       "/tenant/properties/:id",
       ...tenantAccess,
       this.ownershipMiddleware.checkPropertyOwnership,
+      validate(propertyIdSchema),
       this.propertyController.delete
     );
   }

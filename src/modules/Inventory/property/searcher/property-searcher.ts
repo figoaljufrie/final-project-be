@@ -1,5 +1,8 @@
 import { RoomAvailability as PrismaRoomAvailability } from "../../../../generated/prisma";
+import { CacheKeys } from "../../../../shared/helpers/cache-keys";
 import paginate from "../../../../shared/helpers/pagination";
+import { cacheManager } from "../../../../shared/utils/redis/cache-manager";
+import { cacheConfig } from "../../../../shared/utils/redis/redis-config";
 import { PeakSeasonDto } from "../../pricing/dto/availability-dto";
 import { AvailabilityService } from "../../pricing/services/availability-service";
 import { PeakSeasonService } from "../../pricing/services/peak-season-service";
@@ -24,6 +27,24 @@ interface RoomForPricing {
   basePrice: number;
 }
 
+// ✅ EXPORT this interface so property-service.ts can use it
+export interface SearchResult {
+  properties: Array<{
+    id: number;
+    name: string;
+    city: string | null;
+    category: string;
+    minPrice: number | null;
+    image: string | undefined;
+  }>;
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
 export class PropertySearcher {
   private propertyRepository: PropertyRepository;
   private availabilityService: AvailabilityService;
@@ -39,7 +60,24 @@ export class PropertySearcher {
     this.peakSeasonService = peakSeasonService;
   }
 
-  public async search(params: PropertySearchQueryDto) {
+  public async search(params: PropertySearchQueryDto): Promise<SearchResult> {
+    const cacheKey = CacheKeys.search(params);
+
+    console.log(`🔍 Searching properties with cache key: ${cacheKey}`);
+
+    return cacheManager.getOrSet(
+      cacheKey,
+      async () => {
+        console.log("⚙️ Executing database search...");
+        return await this.executeSearch(params);
+      },
+      cacheConfig.searchTTL
+    );
+  }
+
+  private async executeSearch(
+    params: PropertySearchQueryDto
+  ): Promise<SearchResult> {
     const { skip, limit: take } = paginate(params.page, params.limit);
 
     const whereClause: any = {
@@ -75,7 +113,6 @@ export class PropertySearcher {
     if (params.checkInDate && params.checkOutDate) {
       properties = await this.filterAndPriceProperties(
         properties,
-
         params.checkInDate,
         params.checkOutDate
       );
@@ -121,22 +158,37 @@ export class PropertySearcher {
     );
     const dateRange = getDateRange(checkInDate, checkOutDate, false);
 
-    const [peakSeasons, allAvailability] = await Promise.all([
-      this.peakSeasonService.findAllRelevantPeakSeasonsForRange(
+    const availabilityCacheKey = CacheKeys.availabilityBulk(
+      allRoomIds,
+      checkInDate,
+      checkOutDate
+    );
+
+    const allAvailability = (await cacheManager.getOrSet(
+      availabilityCacheKey,
+      async () => {
+        console.log("⚙️ Fetching availability from database...");
+        return await this.availabilityService.getBulkAvailabilityForRooms(
+          allRoomIds,
+          checkInDate,
+          checkOutDate
+        );
+      },
+      cacheConfig.defaultTTL
+    )) as RoomAvailabilityType[];
+
+    // ✅ FIX: Remove 'await' and 'as Promise<>' - the function already returns Promise
+    const peakSeasons =
+      await this.peakSeasonService.findAllRelevantPeakSeasonsForRange(
         checkInDate,
         checkOutDate
-      ) as Promise<PeakSeasonDto[]>,
-      this.availabilityService.getBulkAvailabilityForRooms(
-        allRoomIds,
-        checkInDate,
-        checkOutDate
-      ) as Promise<RoomAvailabilityType[]>,
-    ]);
+      );
 
     const availMap = buildAvailabilityMap(allAvailability);
     const availableProperties: PropertyListItemDto[] = [];
 
     for (const prop of properties) {
+      // ✅ FIX: Remove 'await' since peakSeasons is already resolved
       const relevantPeakSeasons: PeakSeasonDto[] = peakSeasons
         .filter(
           (ps) =>
@@ -177,5 +229,11 @@ export class PropertySearcher {
     }
 
     return availableProperties;
+  }
+
+  public async invalidateSearchCache(): Promise<void> {
+    const pattern = CacheKeys.patterns.allSearchCache();
+    await cacheManager.deletePattern(pattern);
+    console.log("🗑️ Search cache invalidated");
   }
 }

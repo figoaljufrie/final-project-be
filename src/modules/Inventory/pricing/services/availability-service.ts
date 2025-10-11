@@ -1,7 +1,10 @@
+import { CacheKeys } from "../../../../shared/helpers/cache-keys";
 import {
   CalculatedPrice,
   calculateFinalRoomPrice,
 } from "../../../../shared/helpers/price-calc";
+import { cacheManager } from "../../../../shared/utils/redis/cache-manager";
+import { RoomRepository } from "../../room/repository/room-repository";
 import {
   PeakSeasonDto,
   RoomAvailabilityDto,
@@ -12,6 +15,7 @@ import { AvailabilityRepository } from "../repository/availability-repository";
 
 export class AvailabilityService {
   private availabilityRepository = new AvailabilityRepository();
+  private roomRepository = new RoomRepository();
 
   public async setAvailability(
     roomId: number,
@@ -29,7 +33,12 @@ export class AvailabilityService {
       reason: payload.reason,
     };
 
-    return this.availabilityRepository.upsert(repoData);
+    const result = await this.availabilityRepository.upsert(repoData);
+
+    // Invalidate related caches
+    await this.invalidateAvailabilityCaches(roomId);
+
+    return result;
   }
 
   public async getAvailabilityRange(roomId: number, from: Date, to: Date) {
@@ -63,5 +72,40 @@ export class AvailabilityService {
     peakSeasons: PeakSeasonDto[]
   ): CalculatedPrice {
     return calculateFinalRoomPrice(basePrice, availability, peakSeasons);
+  }
+
+  /**
+   * Invalidate availability-related caches
+   */
+  private async invalidateAvailabilityCaches(roomId: number): Promise<void> {
+    try {
+      // Get property ID for this room
+      const roomData = await this.roomRepository.findPropertyId(roomId);
+      if (!roomData) return;
+
+      const propertyId = roomData.propertyId;
+
+      // Invalidate availability cache
+      await cacheManager.deletePattern(
+        CacheKeys.patterns.allAvailabilityCache()
+      );
+
+      // Invalidate property calendar cache
+      await cacheManager.deletePattern(
+        CacheKeys.patterns.allCalendarCache(propertyId)
+      );
+
+      // Invalidate property details cache
+      await cacheManager.deletePattern(
+        CacheKeys.patterns.allPropertyCache(propertyId)
+      );
+
+      // Invalidate search cache
+      await cacheManager.deletePattern(CacheKeys.patterns.allSearchCache());
+
+      console.log(`🗑️ Invalidated availability caches for room ${roomId}`);
+    } catch (error) {
+      console.error("Cache invalidation error:", error);
+    }
   }
 }

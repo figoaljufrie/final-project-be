@@ -1,10 +1,17 @@
+// src/modules/user/routes/user-router.ts
 import { Router } from "express";
 import { $Enums } from "../../../../generated/prisma";
 import { AuthMiddleware } from "../../../../shared/middleware/auth-middleware";
 import { JWTMiddleware } from "../../../../shared/middleware/jwt-middleware";
 import { RBACMiddleware } from "../../../../shared/middleware/rbac-middleware";
 import { UploaderMiddleware } from "../../../../shared/middleware/uploader-middleware";
+import { validate } from "../../../../shared/middleware/validate-middleware";
 import { UserController } from "../controllers/user-controller";
+import {
+  updateEmailValidator,
+  updatePasswordValidator,
+  updateUserValidator,
+} from "../validators/user-validators";
 
 export class UserRouter {
   private router = Router();
@@ -19,16 +26,13 @@ export class UserRouter {
   }
 
   private initializeRoutes() {
-    // ⚠️ IMPORTANT: Put specific routes BEFORE parameterized routes
-
-    // GET /users/me - must come BEFORE /users/:id
+    // ⚠️ Order matters
     this.router.get(
       "/users/me",
       this.authMiddleware.authenticate,
       this.userController.getMe
     );
 
-    // GET /users - list all users
     this.router.get(
       "/users",
       this.authMiddleware.authenticate,
@@ -36,7 +40,6 @@ export class UserRouter {
       this.userController.getAll
     );
 
-    // GET /users/:id - must come AFTER /users/me
     this.router.get(
       "/users/:id",
       this.authMiddleware.authenticate,
@@ -44,16 +47,18 @@ export class UserRouter {
       this.userController.findById
     );
 
-    // PATCH routes
+    // ✅ PATCH routes with Zod validation
     this.router.patch(
       "/users/update-email",
       this.authMiddleware.authenticate,
+      validate(updateEmailValidator),
       this.userController.updateEmail
     );
 
     this.router.patch(
       "/users/update-user",
       this.authMiddleware.authenticate,
+      validate(updateUserValidator),
       this.userController.updateUser
     );
 
@@ -74,6 +79,7 @@ export class UserRouter {
       "/users/update-password",
       this.jwtMiddleware.verifyToken,
       this.authMiddleware.authenticate,
+      validate(updatePasswordValidator),
       this.userController.updatePassword
     );
 
@@ -83,7 +89,6 @@ export class UserRouter {
       this.userController.softDeleteUser
     );
 
-    // DELETE routes
     this.router.delete(
       "/users",
       this.authMiddleware.authenticate,
