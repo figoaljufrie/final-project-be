@@ -3,7 +3,10 @@ import { ZodType } from "zod";
 
 export const validate =
   (schema: ZodType) => (req: Request, res: Response, next: NextFunction) => {
-    const result = schema.safeParse(req.body);
+    const data =
+      req.method === "GET" || req.method === "DELETE" ? req.query : req.body;
+
+    const result = schema.safeParse(data);
 
     if (!result.success) {
       const errors = result.error.issues.map((i) => i.message);
@@ -14,6 +17,12 @@ export const validate =
       });
     }
 
-    req.body = result.data; // sanitized
+    if (req.method === "GET" || req.method === "DELETE") {
+      Object.keys(req.query).forEach((key) => delete (req.query as any)[key]);
+      Object.assign(req.query, result.data);
+    } else {
+      req.body = result.data;
+    }
+
     next();
   };

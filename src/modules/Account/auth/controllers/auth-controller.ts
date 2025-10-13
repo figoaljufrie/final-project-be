@@ -41,21 +41,21 @@ export class AuthController {
   };
 
   public login = async (req: Request, res: Response) => {
-  try {
-    const result = await this.authService.login(req.body);
+    try {
+      const result = await this.authService.login(req.body);
 
-    res.cookie("token", result.accessToken, {
-      httpOnly: true,
-      secure: false,
-      sameSite: "lax", // CHANGED FROM "none" TO "lax"
-      maxAge: 2 * 60 * 60 * 1000,
-    });
-    
-    return succHandle(res, "Login successful", { user: result.user }, 200);
-  } catch (err) {
-    return errHandle(res, "Login failed", 401, (err as Error).message);
-  }
-};
+      res.cookie("token", result.accessToken, {
+        httpOnly: true,
+        secure: false,
+        sameSite: "lax", // CHANGED FROM "none" TO "lax"
+        maxAge: 2 * 60 * 60 * 1000,
+      });
+
+      return succHandle(res, "Login successful", { user: result.user }, 200);
+    } catch (err) {
+      return errHandle(res, "Login failed", 401, (err as Error).message);
+    }
+  };
 
   public logout = async (req: Request, res: Response) => {
     try {
@@ -73,7 +73,7 @@ export class AuthController {
 
   public verifyEmailAndSetPassword = async (req: Request, res: Response) => {
     try {
-      const token = req.cookies.token;
+      const token = req.body.token;
       if (!token) return errHandle(res, "Authorization token missing", 401);
 
       const { password } = req.body;
