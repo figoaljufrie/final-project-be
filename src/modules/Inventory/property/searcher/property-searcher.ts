@@ -27,7 +27,6 @@ interface RoomForPricing {
   basePrice: number;
 }
 
-// ✅ EXPORT this interface so property-service.ts can use it
 export interface SearchResult {
   properties: Array<{
     id: number;
@@ -134,7 +133,7 @@ export class PropertySearcher {
       city: p.city,
       category: p.category,
       minPrice: p.minBasePrice,
-      image: p.images[0]?.url,
+      image: p.images[0]?.url, // only primary image
     }));
 
     return {
@@ -177,7 +176,6 @@ export class PropertySearcher {
       cacheConfig.defaultTTL
     )) as RoomAvailabilityType[];
 
-    // ✅ FIX: Remove 'await' and 'as Promise<>' - the function already returns Promise
     const peakSeasons =
       await this.peakSeasonService.findAllRelevantPeakSeasonsForRange(
         checkInDate,
@@ -188,7 +186,6 @@ export class PropertySearcher {
     const availableProperties: PropertyListItemDto[] = [];
 
     for (const prop of properties) {
-      // ✅ FIX: Remove 'await' since peakSeasons is already resolved
       const relevantPeakSeasons: PeakSeasonDto[] = peakSeasons
         .filter(
           (ps) =>

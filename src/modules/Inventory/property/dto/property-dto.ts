@@ -46,6 +46,9 @@ export interface PropertyUpdateRepoDto {
   category?: $Enums.PropertyCategory;
   city?: string;
   address?: string;
+  province?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 // DTO for data received by service's update method
@@ -55,20 +58,25 @@ export interface UpdatePropertyDto {
   category?: string;
   city?: string;
   address?: string;
+  province?: string;
+  latitude?: number;
+  longitude?: number;
   images?: PropertyImageDto[];
 }
 
+// query parameters for property search
 export interface PropertySearchQueryDto {
   page?: number | undefined;
   limit?: number | undefined;
+  checkInDate?: Date | undefined;
+  checkOutDate?: Date | undefined;
   name?: string | undefined;
   category?: $Enums.PropertyCategory | undefined;
   sortBy?: PropertySortField | undefined;
   sortOrder?: PriceSort | undefined;
-  checkInDate?: Date | undefined;
-  checkOutDate?: Date | undefined;
 }
 
+// repository parameters
 export interface PropertySearchRepoParamsDto {
   whereClause: any;
   skip: number;
@@ -77,13 +85,22 @@ export interface PropertySearchRepoParamsDto {
   sortOrder?: "asc" | "desc";
 }
 
-interface RoomForPricing {
+// simplified room representation for pricing
+export interface RoomForPricing {
   id: number;
   basePrice: number;
 }
 
-export interface PropertyListItemDto extends Omit<Property, "rooms"> {
+// individual review subset for average calculation
+export interface ReviewForSummary {
+  rating: number;
+}
+
+// DTO for frontend consumption (list item)
+export interface PropertyListItemDto
+  extends Omit<Property, "rooms" | "reviews" | "images"> {
   minBasePrice: number | null;
-  images: { url: string }[];
+  avgRating: number | null;
   rooms: RoomForPricing[];
+  images: PropertyImageDto[];
 }

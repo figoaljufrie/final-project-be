@@ -9,11 +9,17 @@ import {
 
 export class PropertyRepository {
   public async create(data: PropertyCreateRepoDto) {
-    return prisma.property.create({ data: data as Prisma.PropertyCreateInput });
+    return prisma.property.create({
+      data: data as Prisma.PropertyCreateInput,
+      include: { images: true },
+    });
   }
 
   public async findById(id: number) {
-    return prisma.property.findUnique({ where: { id } });
+    return prisma.property.findUnique({
+      where: { id },
+      include: { images: true },
+    });
   }
 
   public async findByIdWithRooms(id: number) {
@@ -31,7 +37,11 @@ export class PropertyRepository {
 
   public async findByTenant(tenantId: number) {
     return prisma.property.findMany({
-      where: { tenantId, deletedAt: null },
+      where: {
+        tenantId,
+        deletedAt: null,
+        rooms: { some: { deletedAt: null } },
+      },
       include: { rooms: true },
     });
   }

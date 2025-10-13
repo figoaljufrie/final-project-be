@@ -42,7 +42,7 @@ export class PropertyRouter {
     );
     this.router.get(
       "/properties/:id",
-      validate(propertyIdSchema),
+      // validate(propertyIdSchema),
       this.propertyController.getDetails
     );
     this.router.get(

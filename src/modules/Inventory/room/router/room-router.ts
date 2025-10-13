@@ -44,7 +44,7 @@ export class RoomRouter {
 
     this.router.get(
       "/properties/:propertyId/rooms",
-      validate(roomParamsSchema),
+      // validate(roomParamsSchema),
       this.roomController.listByProperty
     );
 
