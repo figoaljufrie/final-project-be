@@ -25,20 +25,20 @@ export class AuthRouter {
     // ---------- Registration ----------
     this.router.post(
       "/auth/register",
-      validate(registerSchema),
+      // validate(registerSchema),
       this.authController.registerUser
     );
 
     this.router.post(
       "/auth/register-tenant",
-      validate(registerSchema),
+      // validate(registerSchema),
       this.authController.registerTenant
     );
 
     // ---------- Login & Logout ----------
     this.router.post(
       "/auth/login",
-      validate(loginSchema),
+      // validate(loginSchema),
       this.authController.login
     );
 
@@ -53,14 +53,14 @@ export class AuthRouter {
 
     this.router.post(
       "/auth/verify-email-set-password",
-      validate(verifyEmailAndSetPasswordSchema),
+      // validate(verifyEmailAndSetPasswordSchema),
       this.authController.verifyEmailAndSetPassword
     );
 
     this.router.post(
       "/auth/resend-verification",
       forgotPasswordLimiter,
-      validate(resendVerificationSchema),
+      // validate(resendVerificationSchema),
       this.authController.resendVerificationEmail
     );
 
