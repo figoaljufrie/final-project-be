@@ -65,7 +65,6 @@ export class PropertyRepository {
       where: params.whereClause,
       skip: params.skip,
       take: params.take,
-
       include: {
         rooms: {
           where: { deletedAt: null },
@@ -98,5 +97,9 @@ export class PropertyRepository {
 
   public async count(whereClause: Prisma.PropertyWhereInput): Promise<number> {
     return prisma.property.count({ where: whereClause });
+  }
+
+  public async findMany(params: { where: any; include?: any; take?: number }) {
+    return prisma.property.findMany(params);
   }
 }

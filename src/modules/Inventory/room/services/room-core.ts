@@ -2,24 +2,20 @@ import { CacheKeys } from "../../../../shared/helpers/cache-keys";
 import { ApiError } from "../../../../shared/utils/api-error";
 import { prisma } from "../../../../shared/utils/prisma";
 import { cacheManager } from "../../../../shared/utils/redis/cache-manager";
+import { ImageFileInput } from "../../images/dto/image-dto";
 import { ImageService } from "../../images/services/image-service";
 import { AvailabilityRepository } from "../../pricing/repository/availability-repository";
 import { PropertyRepository } from "../../property/repository/property-repository";
 import { CreateRoomDto, RoomCreateTxDto } from "../dto/room-dto";
 import { RoomRepository } from "../repository/room-repository";
+import { RoomCacheService } from "./room-cache";
 
-interface ImageFileInput {
-  file: Express.Multer.File;
-  altText?: string;
-  isPrimary: boolean;
-  order: number;
-}
-
-export class RoomService {
+export class RoomCoreService {
   private roomRepository = new RoomRepository();
   private propertyRepository = new PropertyRepository();
   private availabilityRepository = new AvailabilityRepository();
   private imageService = new ImageService();
+  private roomCacheService = new RoomCacheService();
 
   public async create(
     tenantId: number,
@@ -61,7 +57,7 @@ export class RoomService {
     });
 
     // Invalidate caches after room creation
-    await this.invalidateRoomCaches(payload.propertyId);
+    await this.roomCacheService.invalidateRoomCaches(payload.propertyId);
 
     return createdRoom;
   }
@@ -90,7 +86,7 @@ export class RoomService {
     }
 
     // Invalidate caches
-    await this.invalidateRoomCaches(propertyId);
+    await this.roomCacheService.invalidateRoomCaches(propertyId);
 
     // Fetch updated room with all relations
     const updatedRoom = await this.roomRepository.findById(roomId);
@@ -120,7 +116,7 @@ export class RoomService {
     const result = await this.roomRepository.softDelete(roomId);
 
     // Invalidate caches
-    await this.invalidateRoomCaches(propertyId);
+    await this.roomCacheService.invalidateRoomCaches(propertyId);
 
     return result;
   }
@@ -137,37 +133,5 @@ export class RoomService {
       },
       900 // 15 minutes TTL
     );
-  }
-
-  /**
-   * Invalidate all caches related to rooms and their property
-   */
-  private async invalidateRoomCaches(propertyId: number): Promise<void> {
-    try {
-      // Invalidate rooms cache
-      await cacheManager.delete(CacheKeys.roomsByProperty(propertyId));
-
-      // Invalidate property caches (details, calendar)
-      await cacheManager.deletePattern(
-        CacheKeys.patterns.allPropertyCache(propertyId)
-      );
-
-      // Invalidate calendar cache
-      await cacheManager.deletePattern(
-        CacheKeys.patterns.allCalendarCache(propertyId)
-      );
-
-      // Invalidate search cache (room changes affect search results)
-      await cacheManager.deletePattern(CacheKeys.patterns.allSearchCache());
-
-      // Invalidate availability cache
-      await cacheManager.deletePattern(
-        CacheKeys.patterns.allAvailabilityCache()
-      );
-
-      console.log(`🗑️ Invalidated caches for property ${propertyId} rooms`);
-    } catch (error) {
-      console.error("Cache invalidation error:", error);
-    }
   }
 }

@@ -1,18 +1,6 @@
 import { Request } from "express";
-import { CreateRoomImagePayload } from "../dto/room-dto";
-
-interface ImageMetadata {
-  isPrimary: boolean;
-  order: number;
-}
-
-interface ParsedRoomBody {
-  name: string;
-  capacity: number;
-  basePrice: number;
-  description?: string;
-  totalUnits?: number;
-}
+import { ImageMetadata } from "../../images/dto/image-dto";
+import { CreateRoomImagePayload, ParsedRoomBody } from "../dto/room-dto";
 
 export function parseAndValidateRoomCreation(req: Request): {
   parsedBody: ParsedRoomBody;

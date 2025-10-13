@@ -32,3 +32,11 @@ export interface RoomCreateTxDto {
 export interface RoomUpdateRepoDto extends Partial<Prisma.RoomUpdateInput> {}
 
 export type RoomDetailDto = Room;
+
+export interface ParsedRoomBody {
+  name: string;
+  capacity: number;
+  basePrice: number;
+  description?: string;
+  totalUnits?: number;
+}
