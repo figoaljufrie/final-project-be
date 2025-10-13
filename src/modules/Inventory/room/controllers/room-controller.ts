@@ -2,10 +2,10 @@ import { Request, Response } from "express";
 import { errHandle } from "../../../../shared/helpers/err-handler";
 import { safeNumber } from "../../../../shared/helpers/query-parser";
 import { succHandle } from "../../../../shared/helpers/succ-handler";
-import { RoomService } from "../services/room-service";
+import { RoomCoreService } from "../services/room-core";
 
 export class RoomController {
-  private roomService = new RoomService();
+  private roomService = new RoomCoreService();
 
   public create = async (req: Request, res: Response) => {
     try {

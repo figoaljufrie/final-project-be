@@ -1,25 +1,11 @@
-import { prisma } from "../../../../shared/utils/prisma";
 import { Prisma } from "../../../../generated/prisma";
 import { CloudinaryUtils } from "../../../../shared/utils/cloudinary/cloudinary";
-import { RoomImageRepository } from "../repository/room-image-repository";
+import { prisma } from "../../../../shared/utils/prisma";
+import { ImageFileInput, UploadedImageResult } from "../dto/image-dto";
 import { PropertyImageRepository } from "../repository/property-image-repository";
+import { RoomImageRepository } from "../repository/room-image-repository";
 
 type EntityType = "property" | "room";
-
-interface UploadedImageResult {
-  url: string;
-  publicId?: string;
-  altText?: string;
-  isPrimary: boolean;
-  order: number;
-}
-
-interface ImageFileInput {
-  file: Express.Multer.File;
-  altText?: string;
-  isPrimary: boolean;
-  order: number;
-}
 
 export class ImageService {
   private roomImageRepository = new RoomImageRepository();

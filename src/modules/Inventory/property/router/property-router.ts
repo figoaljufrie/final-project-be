@@ -6,7 +6,13 @@ import { OwnershipMiddleware } from "../../../../shared/middleware/ownership-mid
 import { RBACMiddleware } from "../../../../shared/middleware/rbac-middleware";
 import { UploaderMiddleware } from "../../../../shared/middleware/uploader-middleware";
 import { validate } from "../../../../shared/middleware/validate-middleware";
-import { PropertyController } from "../controller/property-controller";
+
+// 🧩 Import the new split controllers
+import { PropertyCoreController } from "../controller/core/property-core";
+import { PropertyCalendarController } from "../controller/features/property-calendar";
+import { PropertyDetailController } from "../controller/features/property-detail";
+import { PropertySearchController } from "../controller/features/property-search";
+
 import {
   createPropertySchema,
   propertyCalendarSchema,
@@ -17,7 +23,12 @@ import {
 
 export class PropertyRouter {
   private router = Router();
-  private propertyController = new PropertyController();
+
+  private propertyCoreController = new PropertyCoreController();
+  private propertySearchController = new PropertySearchController();
+  private propertyDetailController = new PropertyDetailController();
+  private propertyCalendarController = new PropertyCalendarController();
+
   private authMiddleware = new AuthMiddleware();
   private jwtMiddleware = new JWTMiddleware();
   private rbacMiddleware = new RBACMiddleware();
@@ -38,23 +49,29 @@ export class PropertyRouter {
     this.router.get(
       "/properties/search",
       validate(propertySearchSchema),
-      this.propertyController.search
+      this.propertySearchController.search
     );
+
+    this.router.get(
+      "/properties/nearby",
+      this.propertySearchController.searchNearby
+    );
+
     this.router.get(
       "/properties/:id",
-      // validate(propertyIdSchema),
-      this.propertyController.getDetails
+      this.propertyDetailController.getDetails
     );
+
     this.router.get(
       "/properties/:id/calendar",
       validate(propertyCalendarSchema),
-      this.propertyController.getCalendar
+      this.propertyCalendarController.getCalendar
     );
 
     this.router.get(
       "/tenant/properties",
       ...tenantAccess,
-      this.propertyController.getTenantProperties
+      this.propertyCoreController.getTenantProperties
     );
 
     this.router.post(
@@ -62,7 +79,7 @@ export class PropertyRouter {
       ...tenantAccess,
       this.uploaderMiddleware.upload().array("images", 5),
       validate(createPropertySchema),
-      this.propertyController.create
+      this.propertyCoreController.create
     );
 
     this.router.patch(
@@ -71,7 +88,7 @@ export class PropertyRouter {
       this.ownershipMiddleware.checkPropertyOwnership,
       this.uploaderMiddleware.upload().array("images", 5),
       validate(updatePropertySchema),
-      this.propertyController.update
+      this.propertyCoreController.update
     );
 
     this.router.delete(
@@ -79,7 +96,7 @@ export class PropertyRouter {
       ...tenantAccess,
       this.ownershipMiddleware.checkPropertyOwnership,
       validate(propertyIdSchema),
-      this.propertyController.delete
+      this.propertyCoreController.delete
     );
   }
 

@@ -19,39 +19,44 @@ export interface PropertyImageDto {
   order: number;
 }
 
-// DTO for data passed to repository's create function
 export interface PropertyCreateRepoDto {
   name: string;
   slug: string;
-  description: string;
+  description?: string | undefined;
   category: $Enums.PropertyCategory;
+  address?: string | undefined;
+  city?: string | undefined;
+  province?: string | undefined;
+  latitude?: number | undefined;
+  longitude?: number | undefined;
   tenant: {
     connect: { id: number };
   };
 }
 
-// DTO for data received by service's create method
 export interface CreatePropertyDto {
   name: string;
-  description: string;
+  description?: string | undefined;
   category: string;
+  address?: string | undefined;
+  city?: string | undefined;
+  province?: string | undefined;
   images?: PropertyImageDto[];
 }
 
-// DTO for data passed to repository's update function
 export interface PropertyUpdateRepoDto {
-  name?: string;
-  slug?: string;
-  description?: string;
-  category?: $Enums.PropertyCategory;
-  city?: string;
-  address?: string;
-  province?: string;
-  latitude?: number;
-  longitude?: number;
+
+  name?: string | undefined;
+  slug?: string | undefined;
+  description?: string | undefined;
+  category?: $Enums.PropertyCategory | undefined;
+  address?: string | undefined;
+  city?: string | undefined;
+  province?: string | undefined;
+  latitude?: number | undefined;
+  longitude?: number | undefined;
 }
 
-// DTO for data received by service's update method
 export interface UpdatePropertyDto {
   name?: string;
   description?: string;
@@ -103,4 +108,21 @@ export interface PropertyListItemDto
   avgRating: number | null;
   rooms: RoomForPricing[];
   images: PropertyImageDto[];
+}
+
+export interface SearchResultDto {
+  properties: Array<{
+    id: number;
+    name: string;
+    city: string | null;
+    category: string;
+    minPrice: number | null;
+    image: string | undefined;
+  }>;
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
 }
