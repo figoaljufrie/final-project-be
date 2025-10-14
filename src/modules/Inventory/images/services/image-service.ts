@@ -72,9 +72,11 @@ export class ImageService {
     entity: EntityType,
     files: ImageFileInput[]
   ): Promise<UploadedImageResult[]> {
-    if (entity === "room") {
-      const uploads = files.map(async (img) => {
-        const result = await this.cloudinaryUtils.upload(img.file);
+    // ✅ Upload BOTH room and property images to Cloudinary
+    const uploads = files.map(async (img) => {
+      const result = await this.cloudinaryUtils.upload(img.file);
+
+      if (entity === "room") {
         return {
           url: result.secure_url,
           publicId: result.public_id,
@@ -82,16 +84,19 @@ export class ImageService {
           isPrimary: img.isPrimary,
           order: img.order,
         };
-      });
-      return Promise.all(uploads);
-    }
+      }
 
-    return files.map((img) => ({
-      url: `/uploads/${img.file.filename}`,
-      altText: img.altText ?? "",
-      isPrimary: img.isPrimary,
-      order: img.order,
-    }));
+      // Property images - also upload to Cloudinary
+      return {
+        url: result.secure_url,
+        // publicId not in PropertyImage schema, so omit it
+        altText: img.altText ?? "",
+        isPrimary: img.isPrimary,
+        order: img.order,
+      };
+    });
+
+    return Promise.all(uploads);
   }
 
   private async createManyWithTx(
@@ -101,23 +106,17 @@ export class ImageService {
     tx: Prisma.TransactionClient
   ) {
     if (entity === "room") {
-      // Safe cast since room uploads always have publicId
       return this.roomImageRepository.createManyForRoomWithTx(
         entityId,
-        images as {
-          url: string;
-          publicId: string;
-          altText?: string;
-          isPrimary: boolean;
-          order: number;
-        }[],
+        images.filter((img) => img.publicId) as any, // Only rooms have publicId
         tx
       );
     }
 
+    // Property images don't need publicId
     return this.propertyImageRepository.createManyForPropertyWithTx(
       entityId,
-      images,
+      images.map(({ publicId, ...rest }) => rest), // Remove publicId
       tx
     );
   }

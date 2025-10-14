@@ -6,7 +6,7 @@ import {
   PropertySearchQueryDto,
   PropertySearchRepoParamsDto,
   PropertySortField,
-  SearchResultDto
+  SearchResultDto,
 } from "../dto/property-dto";
 import { PropertyRepository } from "../repository/property-repository";
 import { FilterAndPriceService } from "./filter-and-price";
@@ -84,7 +84,7 @@ export class SearchExecutor {
       city: p.city,
       category: p.category,
       minPrice: p.minBasePrice,
-      image: p.images[0]?.url,
+      images: p.images || [],
     }));
 
     return {

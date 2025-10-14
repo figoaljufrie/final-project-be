@@ -40,9 +40,16 @@ export class PropertyRepository {
       where: {
         tenantId,
         deletedAt: null,
-        rooms: { some: { deletedAt: null } },
       },
-      include: { rooms: true },
+      include: {
+        rooms: {
+          where: { deletedAt: null },
+        },
+        images: true,
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
     });
   }
 
@@ -83,9 +90,18 @@ export class PropertyRepository {
           take: 1,
         },
         images: {
-          where: { isPrimary: true },
-          select: { url: true },
-          take: 1,
+          // ✅ Get all images with proper ordering
+          select: {
+            url: true,
+            altText: true,
+            isPrimary: true,
+            order: true,
+            // Note: NO publicId for property images
+          },
+          orderBy: [
+            { isPrimary: "desc" }, // Primary images first
+            { order: "asc" }, // Then by order
+          ],
         },
       },
       orderBy,
@@ -93,12 +109,14 @@ export class PropertyRepository {
 
     const result: PropertyListItemDto[] = properties.map((prop) => {
       const minBasePrice = prop.rooms[0]?.basePrice ?? null;
-      const { rooms, ...rest } = prop;
+      const { rooms, images, ...rest } = prop;
 
       return {
         ...rest,
         minBasePrice,
+        avgRating: null, // You might want to calculate this
         rooms: rooms,
+        images: images,
       } as PropertyListItemDto;
     });
 
