@@ -99,7 +99,7 @@ export class AuthController {
 
   public verifyEmail = async (req: Request, res: Response) => {
     try {
-      const token = req.cookies.token;
+      const token = req.body.token;  
       if (!token) return errHandle(res, "Authorization token missing", 401);
 
       const result = await this.authService.verifyTokenAndUpdate(

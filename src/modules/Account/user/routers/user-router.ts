@@ -51,14 +51,14 @@ export class UserRouter {
     this.router.patch(
       "/users/update-email",
       this.authMiddleware.authenticate,
-      validate(updateEmailValidator),
+      // validate(updateEmailValidator),
       this.userController.updateEmail
     );
 
     this.router.patch(
       "/users/update-user",
       this.authMiddleware.authenticate,
-      validate(updateUserValidator),
+      // validate(updateUserValidator),
       this.userController.updateUser
     );
 
@@ -79,7 +79,7 @@ export class UserRouter {
       "/users/update-password",
       this.jwtMiddleware.verifyToken,
       this.authMiddleware.authenticate,
-      validate(updatePasswordValidator),
+      // validate(updatePasswordValidator),
       this.userController.updatePassword
     );
 
