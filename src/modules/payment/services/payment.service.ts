@@ -29,9 +29,11 @@ export class PaymentService {
 
   async createPayment(bookingData: MidtransPaymentRequest): Promise<MidtransPaymentResponse> {
     try {
+      const orderId = `BOOKING-${bookingData.bookingId}-${Date.now()}`;
+      
       const parameter = {
         transaction_details: {
-          order_id: `BOOKING-${bookingData.bookingId}-${Date.now()}`,
+          order_id: orderId,
           gross_amount: bookingData.totalAmount,
         },
         customer_details: {
@@ -47,9 +49,9 @@ export class PaymentService {
           },
         ],
         callbacks: {
-          finish: `${process.env.FRONTEND_URL}/bookings/${bookingData.bookingId}/payment-success`,
-          pending: `${process.env.FRONTEND_URL}/bookings/${bookingData.bookingId}/payment-pending`,
-          error: `${process.env.FRONTEND_URL}/bookings/${bookingData.bookingId}/payment-error`,
+          finish: `${process.env.FRONTEND_URL}?from=success&order_id=${orderId}`,
+          pending: `${process.env.FRONTEND_URL}?from=pending&order_id=${orderId}`,
+          error: `${process.env.FRONTEND_URL}?from=error&order_id=${orderId}`,
         },
       };
 
@@ -57,7 +59,7 @@ export class PaymentService {
       return {
         token: transaction.token,
         redirectUrl: transaction.redirect_url,
-        orderId: parameter.transaction_details.order_id,
+        orderId: orderId,
       };
     } catch (error) {
       console.error('Midtrans payment error:', error);
