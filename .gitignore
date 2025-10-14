@@ -7,3 +7,4 @@ docker
 firebase-admin.json
 .docker
 docker
+.env.production

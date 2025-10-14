@@ -1,4 +1,4 @@
-import "module-alias/register"
+import "module-alias/register";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import dotenv from "dotenv";
@@ -19,20 +19,28 @@ import { prisma } from "./shared/utils/prisma";
 import { redisClient } from "./shared/utils/redis/redis";
 import { cacheManager } from "./shared/utils/redis/cache-manager";
 
-dotenv.config();
+if (process.env.NODE_ENV === "production") {
+  dotenv.config({ path: ".env.production" });
+  console.log("Using production environment variables");
+} else {
+  dotenv.config({ path: ".env" });
+  console.log("Using local development environment variables");
+}
 
 export class App {
   private app: Application;
   private port: number;
   private cronService = CronService.getInstance();
 
-  constructor(port: number = 8000) {
+  constructor(port?: number) {
     this.app = express();
-    this.port = port;
+    this.port = port ||Number(process.env.PORT || 8000);
 
     // CORS setup
     const corsOptions = {
-      origin: "http://localhost:3000",
+      origin: 
+      process.env.NODE_ENV === "production" ?
+      "https://final-project-fe-ebon.vercel.app/": "http://localhost:3000",
       methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
       credentials: true,
     };
