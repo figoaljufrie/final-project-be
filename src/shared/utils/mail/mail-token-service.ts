@@ -18,7 +18,7 @@ export class MailTokenService {
       expiresAt,
     });
 
-    const verifyLink = `${process.env.APP_URL}/verify-email?token=${token}`;
+    const verifyLink = `${process.env.APP_URL}/email-verification?token=${token}`;
     await this.mailUtils.sendMail(
       email,
       "Verify your email",

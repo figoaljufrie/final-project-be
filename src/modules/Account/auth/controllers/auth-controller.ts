@@ -44,10 +44,12 @@ export class AuthController {
     try {
       const result = await this.authService.login(req.body);
 
+      const isProd = process.env.NODE_ENV === "production";
+
       res.cookie("token", result.accessToken, {
         httpOnly: true,
-        secure: false,
-        sameSite: "lax", // CHANGED FROM "none" TO "lax"
+        secure: isProd, // secure in production
+        sameSite: isProd ? "none" : "lax", // cross-site for prod, lax for dev
         maxAge: 2 * 60 * 60 * 1000,
       });
 
@@ -59,10 +61,12 @@ export class AuthController {
 
   public logout = async (req: Request, res: Response) => {
     try {
+      const isProd = process.env.NODE_ENV === "production";
+
       res.clearCookie("token", {
         httpOnly: true,
-        secure: false, //dev only, for prod req. true
-        sameSite: "lax",
+        secure: isProd,
+        sameSite: isProd ? "none" : "lax",
       });
 
       return succHandle(res, "Logout successful", null, 200);

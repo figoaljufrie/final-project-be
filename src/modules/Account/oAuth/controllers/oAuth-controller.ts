@@ -2,7 +2,6 @@ import { Request, Response } from "express";
 import { errHandle } from "../../../../shared/helpers/err-handler";
 import { succHandle } from "../../../../shared/helpers/succ-handler";
 import { OAuthService } from "../services/oAuth-service";
-import { Jwt } from "jsonwebtoken";
 
 const service = new OAuthService();
 
@@ -15,11 +14,13 @@ export class OAuthController {
 
       const result = await service.socialLogin(idToken, provider);
 
-      // ✅ set cookie
+      const isProd = process.env.NODE_ENV === "production";
+
+      // ✅ set cookie dynamically for dev/prod
       res.cookie("access_token", result.accessToken, {
         httpOnly: true,
-        secure: false,
-        sameSite: "none",
+        secure: isProd, // true in production, false in dev
+        sameSite: isProd ? "none" : "lax", // cross-site in prod, lax in dev
         maxAge: 2 * 60 * 60 * 1000, // 2 hours
       });
 
