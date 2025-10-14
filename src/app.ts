@@ -38,9 +38,20 @@ export class App {
 
     // CORS setup
     const corsOptions = {
-      origin: 
-      process.env.NODE_ENV === "production" ?
-      "https://final-project-fe-ebon.vercel.app/": "http://localhost:3000",
+      origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+        const allowedOrigins = [
+          process.env.NODE_ENV === "production" 
+            ? "https://final-project-fe-ebon.vercel.app" 
+            : "http://localhost:3000",
+        ];
+        
+        // Allow requests with no origin (like Midtrans webhook)
+        if (!origin || allowedOrigins.includes(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error('Not allowed by CORS'));
+        }
+      },
       methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
       credentials: true,
     };
