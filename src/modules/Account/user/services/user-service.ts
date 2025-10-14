@@ -27,7 +27,7 @@ export class UserService {
 
   public async updateEmail(userId: number, email: string) {
     const updatedUser = await this.userRepository.updateEmail(userId, email);
-    await this.mailTokenService.sendVerification(updatedUser.id, email);
+    await this.mailTokenService.sendUpdateEmailVerification(updatedUser.id, email);
     return updatedUser;
   }
 

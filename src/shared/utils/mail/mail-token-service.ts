@@ -6,7 +6,7 @@ export class MailTokenService {
   private mailUtils = new MailUtils();
   private authRepository = new AuthRepository();
 
-  // Email verification (registration or email change)
+  // Email verification (registration)
   public async sendVerification(userId: number, email: string) {
     const token = randomBytes(32).toString("hex");
     const expiresAt = new Date(Date.now() + 3600 * 1000); // 1h
@@ -18,10 +18,32 @@ export class MailTokenService {
       expiresAt,
     });
 
-    const verifyLink = `${process.env.APP_URL}/email-verification?token=${token}`;
+    const verifyLink = `${process.env.APP_URL}/email-verification/register?token=${token}`;
     await this.mailUtils.sendMail(
       email,
       "Verify your email",
+      "email-verification",
+      { verifyLink, email }
+    );
+
+    return token;
+  }
+
+  public async sendUpdateEmailVerification(userId: number, email: string) {
+    const token = randomBytes(32).toString("hex");
+    const expiresAt = new Date(Date.now() + 3600 * 1000); // 1h
+
+    await this.authRepository.create({
+      userId,
+      token,
+      type: "email_verification",
+      expiresAt,
+    });
+
+    const verifyLink = `${process.env.APP_URL}/email-verification/update?token=${token}`;
+    await this.mailUtils.sendMail(
+      email,
+      "Verify your new email",
       "email-verification",
       { verifyLink, email }
     );
