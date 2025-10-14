@@ -13,7 +13,6 @@ export enum PropertySortField {
 
 export interface PropertyImageDto {
   url: string;
-  publicId: string;
   altText?: string;
   isPrimary: boolean;
   order: number;
@@ -45,7 +44,6 @@ export interface CreatePropertyDto {
 }
 
 export interface PropertyUpdateRepoDto {
-
   name?: string | undefined;
   slug?: string | undefined;
   description?: string | undefined;
@@ -117,7 +115,7 @@ export interface SearchResultDto {
     city: string | null;
     category: string;
     minPrice: number | null;
-    image: string | undefined;
+    images: PropertyImageDto[];
   }>;
   pagination: {
     page: number;
