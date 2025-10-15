@@ -101,6 +101,7 @@ model PropertyImage {
   id         Int      @id @default(autoincrement())
   propertyId Int      @map("property_id")
   url        String
+  publicId   String?  @map("public_id")
   altText    String?  @map("alt_text")
   isPrimary  Boolean  @default(false) @map("is_primary")
   order      Int      @default(0)
@@ -156,6 +157,7 @@ model RoomAvailability {
   priceModifier Float?   @map("price_modifier")
   reason        String?
   bookedUnits   Int      @default(0) @map("booked_units")
+  totalUnits    Int      @default(1)
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
   room          Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
