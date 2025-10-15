@@ -24,7 +24,7 @@ export class RoomRepository {
         capacity: data.capacity,
         basePrice: data.basePrice,
         description: data.description ?? null,
-        totalUnits: totalUnits,
+        totalUnits,
       },
     });
   }
@@ -32,7 +32,7 @@ export class RoomRepository {
   public async findByProperty(propertyId: number) {
     return prisma.room.findMany({
       where: { propertyId, deletedAt: null },
-      include: { images: true },
+      include: { images: true, availability: true },
     });
   }
 

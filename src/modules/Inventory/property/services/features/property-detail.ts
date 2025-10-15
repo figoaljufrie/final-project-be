@@ -1,20 +1,20 @@
+import { PeakSeasonQuery } from "@/modules/Inventory/peakseason/services/features/peak-season-query";
+import { buildAvailabilityMap } from "@/shared/helpers/build-availability-map";
 import { CacheKeys } from "../../../../../shared/helpers/cache-keys";
 import { ApiError } from "../../../../../shared/utils/api-error";
 import { cacheManager } from "../../../../../shared/utils/redis/cache-manager";
 import { cacheConfig } from "../../../../../shared/utils/redis/redis-config";
-import { AvailabilityService } from "../../../pricing/services/availability-service";
-import { PeakSeasonService } from "../../../pricing/services/peak-season-service";
+import { AvailabilityService } from "../../../availability/services/availability-service";
 import {
-  buildAvailabilityMap,
   checkRoomRangeAvailability,
-  getDateRange,
+  getPropertyDateRange,
 } from "../../helpers/property-helpers";
 import { PropertyRepository } from "../../repository/property-repository";
 
 export class PropertyDetailsService {
   private propertyRepository = new PropertyRepository();
   private availabilityService = new AvailabilityService();
-  private peakSeasonService = new PeakSeasonService();
+  private peakSeasonQuery= new PeakSeasonQuery();
 
   public async getPropertyDetails(
     propertyId: number,
@@ -56,10 +56,10 @@ export class PropertyDetailsService {
       throw new ApiError("Check-out date must be after check-in date.", 400);
 
     const roomIds = property.rooms.map((r) => r.id);
-    const dateRange = getDateRange(checkInDate, checkOutDate, false);
+    const dateRange = getPropertyDateRange(checkInDate, checkOutDate, false);
 
     const [peakSeasons, availabilityData] = await Promise.all([
-      this.peakSeasonService.findActivePeakSeasonsForProperty(
+      this.peakSeasonQuery.findActivePeakSeasonsForProperty(
         propertyId,
         checkInDate,
         checkOutDate

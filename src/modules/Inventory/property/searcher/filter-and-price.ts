@@ -1,14 +1,14 @@
+import { buildAvailabilityMap } from "@/shared/helpers/build-availability-map";
 import { RoomAvailability as PrismaRoomAvailability } from "../../../../generated/prisma";
 import { CacheKeys } from "../../../../shared/helpers/cache-keys";
 import { cacheManager } from "../../../../shared/utils/redis/cache-manager";
 import { cacheConfig } from "../../../../shared/utils/redis/redis-config";
-import { PeakSeasonDto } from "../../pricing/dto/availability-dto";
-import { AvailabilityService } from "../../pricing/services/availability-service";
-import { PeakSeasonService } from "../../pricing/services/peak-season-service";
+import { AvailabilityService } from "../../availability/services/availability-service";
+import { PeakSeasonDto } from "../../peakseason/dto/peak-season-dto";
+import { PeakSeasonQuery } from "../../peakseason/services/features/peak-season-query";
 import {
-  buildAvailabilityMap,
   checkRoomRangeAvailability,
-  getDateRange,
+  getPropertyDateRange,
 } from "../../property/helpers/property-helpers";
 import { PropertyListItemDto } from "../dto/property-dto";
 
@@ -20,14 +20,14 @@ interface RoomForPricing {
 
 export class FilterAndPriceService {
   private availabilityService: AvailabilityService;
-  private peakSeasonService: PeakSeasonService;
+  private peakSeasonQuery: PeakSeasonQuery;
 
   constructor(
     availabilityService: AvailabilityService,
-    peakSeasonService: PeakSeasonService
+    peakSeasonQuery: PeakSeasonQuery
   ) {
     this.availabilityService = availabilityService;
-    this.peakSeasonService = peakSeasonService;
+    this.peakSeasonQuery = peakSeasonQuery;
   }
 
   public async filterAndPriceProperties(
@@ -38,7 +38,7 @@ export class FilterAndPriceService {
     const allRoomIds = properties.flatMap((p) =>
       p.rooms.map((r: RoomForPricing) => r.id)
     );
-    const dateRange = getDateRange(checkInDate, checkOutDate, false);
+    const dateRange = getPropertyDateRange(checkInDate, checkOutDate, false);
 
     const availabilityCacheKey = CacheKeys.availabilityBulk(
       allRoomIds,
@@ -60,7 +60,7 @@ export class FilterAndPriceService {
     )) as RoomAvailabilityType[];
 
     const peakSeasons =
-      await this.peakSeasonService.findAllRelevantPeakSeasonsForRange(
+      await this.peakSeasonQuery.findAllRelevantPeakSeasonsForRange(
         checkInDate,
         checkOutDate
       );

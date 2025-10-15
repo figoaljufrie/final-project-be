@@ -1,10 +1,10 @@
-import { ApiError } from "../../../shared/utils/api-error";
+import { PeakSeasonQuery } from "@/modules/Inventory/peakseason/services/features/peak-season-query";
 import { calculateFinalRoomPrice } from "../../../shared/helpers/price-calc";
-import { PeakSeasonService } from "../../Inventory/pricing/services/peak-season-service";
-import { AvailabilityService } from "../../Inventory/pricing/services/availability-service";
+import { ApiError } from "../../../shared/utils/api-error";
+import { AvailabilityService } from "../../Inventory/availability/services/availability-service";
 
 export class BookingCalculationUtils {
-  private static peakSeasonService = new PeakSeasonService();
+  private static peakSeasonQuery = new PeakSeasonQuery();
   private static availabilityService = new AvailabilityService();
 
   // Advanced calculation using Feature 1's pricing logic
@@ -31,7 +31,7 @@ export class BookingCalculationUtils {
     }
 
     // Get peak seasons for the property and date range
-    const peakSeasons = await this.peakSeasonService.findActivePeakSeasonsForProperty(
+    const peakSeasons = await this.peakSeasonQuery.findActivePeakSeasonsForProperty(
       propertyId,
       checkInDate,
       checkOutDate

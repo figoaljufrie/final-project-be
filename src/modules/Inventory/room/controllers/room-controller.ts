@@ -29,7 +29,7 @@ export class RoomController {
         name: req.body.name,
         capacity: Number(req.body.capacity),
         basePrice: Number(req.body.basePrice),
-        totalUnits: Number(req.body.totalUnits),
+        totalUnits: Number(req.body.totalUnits) || 1,
         description: req.body.description,
       };
 
@@ -72,7 +72,7 @@ export class RoomController {
         name: req.body.name,
         capacity: Number(req.body.capacity),
         basePrice: Number(req.body.basePrice),
-        totalUnits: Number(req.body.totalUnits),
+        totalUnits: Number(req.body.totalUnits) || 1,
         description: req.body.description,
       };
 

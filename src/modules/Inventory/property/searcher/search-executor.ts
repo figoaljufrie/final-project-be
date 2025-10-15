@@ -1,6 +1,6 @@
 import paginate from "../../../../shared/helpers/pagination";
-import { AvailabilityService } from "../../pricing/services/availability-service";
-import { PeakSeasonService } from "../../pricing/services/peak-season-service";
+import { AvailabilityService } from "../../availability/services/availability-service";
+import { PeakSeasonQuery } from "../../peakseason/services/features/peak-season-query";
 import {
   PriceSort,
   PropertySearchQueryDto,
@@ -18,12 +18,12 @@ export class SearchExecutor {
   constructor(
     propertyRepository: PropertyRepository,
     availabilityService: AvailabilityService,
-    peakSeasonService: PeakSeasonService
+    peakSeasonQuery: PeakSeasonQuery
   ) {
     this.propertyRepository = propertyRepository;
     this.filterAndPriceService = new FilterAndPriceService(
       availabilityService,
-      peakSeasonService
+      peakSeasonQuery
     );
   }
 

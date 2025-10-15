@@ -1,7 +1,7 @@
+import { PeakSeasonQuery } from "@/modules/Inventory/peakseason/services/features/peak-season-query";
 import { OpenCageGeoDTO } from "@/shared/utils/opencage/opencage-dto";
 import { OpenCageGeoService } from "../../../../../shared/utils/opencage/opencage-service";
-import { AvailabilityService } from "../../../pricing/services/availability-service";
-import { PeakSeasonService } from "../../../pricing/services/peak-season-service";
+import { AvailabilityService } from "../../../availability/services/availability-service";
 import {
   PropertySearchQueryDto,
   SearchResultDto,
@@ -12,13 +12,13 @@ import { PropertySearcher } from "../../searcher/property-searcher";
 export class PropertySearchService {
   private propertyRepository = new PropertyRepository();
   private availabilityService = new AvailabilityService();
-  private peakSeasonService = new PeakSeasonService();
+  private peakSeasonQuery = new PeakSeasonQuery();
   private geocodingService = new OpenCageGeoService();
 
   private propertySearcher = new PropertySearcher(
     this.propertyRepository,
     this.availabilityService,
-    this.peakSeasonService
+    this.peakSeasonQuery
   );
 
   public async searchProperties(
