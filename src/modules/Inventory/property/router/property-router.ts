@@ -56,6 +56,16 @@ export class PropertyRouter {
       "/properties/nearby",
       this.propertySearchController.searchNearby
     );
+    
+    this.router.get(
+      "/properties/geocode",
+      this.propertySearchController.geocodeAddress
+    );
+
+    this.router.get(
+      "/properties/reverse-geocode",
+      this.propertySearchController.reverseGeocode
+    );
 
     this.router.get(
       "/properties/:id",
