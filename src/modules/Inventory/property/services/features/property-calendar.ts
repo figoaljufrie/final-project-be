@@ -1,23 +1,22 @@
+import { PeakSeasonDto } from "@/modules/Inventory/peakseason/dto/peak-season-dto";
+import { PeakSeasonQuery } from "@/modules/Inventory/peakseason/services/features/peak-season-query";
+import { buildAvailabilityMap } from "@/shared/helpers/build-availability-map";
 import { RoomAvailability as PrismaRoomAvailability } from "../../../../../generated/prisma";
 import { CacheKeys } from "../../../../../shared/helpers/cache-keys";
 import { ApiError } from "../../../../../shared/utils/api-error";
 import { cacheManager } from "../../../../../shared/utils/redis/cache-manager";
 import { cacheConfig } from "../../../../../shared/utils/redis/redis-config";
-import { PeakSeasonDto } from "../../../pricing/dto/availability-dto";
-import { AvailabilityService } from "../../../pricing/services/availability-service";
-import { PeakSeasonService } from "../../../pricing/services/peak-season-service";
-import {
-  buildAvailabilityMap,
-  getDateRange,
-} from "../../helpers/property-helpers";
+import { AvailabilityService } from "../../../availability/services/availability-service";
+import { getPropertyDateRange } from "../../helpers/property-helpers";
 import { PropertyRepository } from "../../repository/property-repository";
+import { toLocalMidnight, formatDateKey } from "@/shared/helpers/date-utils";
 
 type RoomAvailabilityType = PrismaRoomAvailability;
 
 export class PropertyCalendarService {
   private propertyRepository = new PropertyRepository();
   private availabilityService = new AvailabilityService();
-  private peakSeasonService = new PeakSeasonService();
+  private peakSeasonQuery = new PeakSeasonQuery();
 
   public async getPropertyCalendar(
     propertyId: number,
@@ -45,13 +44,14 @@ export class PropertyCalendarService {
     );
     if (!property) throw new ApiError("Property not found", 404);
 
-    const startDate = new Date(year, month - 1, 1);
-    const endDate = new Date(year, month, 0);
+    // Normalize month range to local midnight
+    const startDate = toLocalMidnight(new Date(year, month - 1, 1));
+    const endDate = toLocalMidnight(new Date(year, month, 0));
     const roomIds = property.rooms.map((r) => r.id);
-    const dateRange = getDateRange(startDate, endDate, true);
+    const dateRange = getPropertyDateRange(startDate, endDate, true);
 
     const [peakSeasons, availabilityData] = await Promise.all([
-      this.peakSeasonService.findActivePeakSeasonsForProperty(
+      this.peakSeasonQuery.findActivePeakSeasonsForProperty(
         propertyId,
         startDate,
         endDate
@@ -67,16 +67,39 @@ export class PropertyCalendarService {
 
     const calendarData = property.rooms.map((room) => {
       const dailyPrices = dateRange.map((date) => {
-        const dateKey = date.toISOString().split("T")[0];
-        const availability = availMap.get(`${room.id}-${dateKey}`) ?? null;
+        const localDate = toLocalMidnight(date);
+        const dateKey = formatDateKey(localDate);
+
+        let availabilityFallback =
+          availMap.get(`${room.id}-${dateKey}`) ?? null;
+
+        if (!availabilityFallback) {
+          availabilityFallback = {
+            id: -1,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            roomId: room.id,
+            date: localDate,
+            isAvailable: true,
+            customPrice: null,
+            priceModifier: null,
+            reason: null,
+            bookedUnits: 0,
+            totalUnits: room.totalUnits ?? 1,
+          } as any;
+        }
+
         const activePeakSeasons = peakSeasons.filter(
-          (ps) => date >= ps.startDate && ps.endDate && date <= ps.endDate
+          (ps) =>
+            localDate >= toLocalMidnight(ps.startDate) &&
+            ps.endDate &&
+            localDate <= toLocalMidnight(ps.endDate)
         );
 
         const { price, available } =
           this.availabilityService.getDailyCalculatedPrice(
             room.basePrice,
-            availability as RoomAvailabilityType | null,
+            availabilityFallback as RoomAvailabilityType | null,
             activePeakSeasons as PeakSeasonDto[]
           );
 

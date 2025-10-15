@@ -1,5 +1,5 @@
-import { AvailabilityService } from "../../pricing/services/availability-service";
-import { PeakSeasonService } from "../../pricing/services/peak-season-service";
+import { AvailabilityService } from "../../availability/services/availability-service";
+import { PeakSeasonQuery } from "../../peakseason/services/features/peak-season-query";
 import { PropertySearchQueryDto, SearchResultDto } from "../dto/property-dto";
 import { PropertyRepository } from "../repository/property-repository";
 import { SearchCacheManager } from "./search-cache";
@@ -12,13 +12,13 @@ export class PropertySearcher {
   constructor(
     propertyRepository: PropertyRepository,
     availabilityService: AvailabilityService,
-    peakSeasonService: PeakSeasonService
+    peakSeasonQuery: PeakSeasonQuery
   ) {
     this.cacheManager = new SearchCacheManager();
     this.executor = new SearchExecutor(
       propertyRepository,
       availabilityService,
-      peakSeasonService
+      peakSeasonQuery
     );
   }
 

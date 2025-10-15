@@ -46,6 +46,7 @@ export class PeakSeasonRepository {
       },
     });
   }
+
   public async findActivePeakSeasonsForPropertyRange(
     propertyId: number,
     startDate: Date,
@@ -93,6 +94,11 @@ export class PeakSeasonRepository {
     });
   }
 
+  /**
+   * Checks if any existing peak seasons overlap with the given date range.
+   * Instead of blocking, this now returns a list of overlapping seasons
+   * so that the system can *stack* or *combine* them gracefully.
+   */
   public async hasOverlapped(
     tenantId: number,
     startDate: Date,
@@ -100,16 +106,11 @@ export class PeakSeasonRepository {
     propertyIds: number[] = [],
     applyToAllProperties: boolean,
     excludeId?: number
-  ): Promise<boolean> {
-    // Build a clean where clause dynamically
+  ): Promise<PeakSeason[]> {
     const where: Prisma.PeakSeasonWhereInput = {
       tenantId,
-      OR: [
-        {
-          startDate: { lte: endDate },
-          endDate: { gte: startDate },
-        },
-      ],
+      startDate: { lte: endDate },
+      endDate: { gte: startDate },
     };
 
     if (excludeId) {
@@ -118,20 +119,17 @@ export class PeakSeasonRepository {
 
     const overlappingSeasons = await prisma.peakSeason.findMany({ where });
 
-    for (const season of overlappingSeasons) {
-      if (applyToAllProperties || season.applyToAllProperties) {
-        return true;
-      }
+    // Filter down to relevant overlaps (same property or global)
+    const relevantOverlaps = overlappingSeasons.filter((season) => {
+      if (applyToAllProperties || season.applyToAllProperties) return true;
 
       const commonProps = season.propertyIds.filter((id) =>
         propertyIds.includes(id)
       );
-      if (commonProps.length > 0) {
-        return true;
-      }
-    }
+      return commonProps.length > 0;
+    });
 
-    return false;
+    return relevantOverlaps;
   }
 
   public async findForPropertyInRange(
@@ -152,5 +150,9 @@ export class PeakSeasonRepository {
       },
       orderBy: { startDate: "asc" },
     });
+  }
+
+  public async deletePeakSeason(id: number): Promise<PeakSeason> {
+    return prisma.peakSeason.delete({ where: { id } });
   }
 }

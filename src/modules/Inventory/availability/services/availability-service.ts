@@ -1,12 +1,13 @@
+import { toLocalMidnight } from "@/shared/helpers/date-utils";
 import { CacheKeys } from "../../../../shared/helpers/cache-keys";
 import {
   CalculatedPrice,
   calculateFinalRoomPrice,
 } from "../../../../shared/helpers/price-calc";
 import { cacheManager } from "../../../../shared/utils/redis/cache-manager";
+import { PeakSeasonDto } from "../../peakseason/dto/peak-season-dto";
 import { RoomRepository } from "../../room/repository/room-repository";
 import {
-  PeakSeasonDto,
   RoomAvailabilityDto,
   SetAvailabilityBodyDto,
   SetAvailabilityRepoDto,
@@ -21,8 +22,7 @@ export class AvailabilityService {
     roomId: number,
     payload: SetAvailabilityBodyDto
   ) {
-    const date = new Date(payload.date);
-    date.setHours(0, 0, 0, 0);
+    const date = toLocalMidnight(new Date(payload.date));
 
     const repoData: SetAvailabilityRepoDto = {
       roomId: roomId,
@@ -39,6 +39,22 @@ export class AvailabilityService {
     await this.invalidateAvailabilityCaches(roomId);
 
     return result;
+  }
+
+  public async getAvailableUnits(roomId: number, date: Date): Promise<number> {
+    const availability = await this.availabilityRepository.findByRoomAndDate(
+      roomId,
+      date
+    );
+    if (!availability) {
+      const room = await this.roomRepository.findById(roomId);
+      return room?.totalUnits ?? 1;
+    }
+
+    return Math.max(
+      (availability.totalUnits ?? 1) - (availability.bookedUnits ?? 0),
+      0
+    );
   }
 
   public async getAvailabilityRange(roomId: number, from: Date, to: Date) {

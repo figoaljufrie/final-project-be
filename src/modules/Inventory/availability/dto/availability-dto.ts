@@ -1,11 +1,5 @@
-import {
-  $Enums,
-  PeakSeason,
-  RoomAvailability
-} from "../../../../generated/prisma";
+import { RoomAvailability } from "../../../../generated/prisma";
 import { CalculatedPrice } from "../../../../shared/helpers/price-calc";
-
-// --- AVAILABILITY DTOs (RoomAvailability) ---
 
 export interface SetAvailabilityBodyDto {
   date: string;
@@ -13,7 +7,7 @@ export interface SetAvailabilityBodyDto {
   customPrice?: number;
   priceModifier?: number;
   reason?: string;
-  bookedUnits: number
+  bookedUnits: number;
 }
 
 export interface SetAvailabilityRepoDto {
@@ -21,7 +15,7 @@ export interface SetAvailabilityRepoDto {
   date: Date;
   isAvailable?: boolean | undefined;
   customPrice?: number | undefined;
-  bookedUnits?: number | undefined
+  bookedUnits?: number | undefined;
   priceModifier?: number | undefined;
   reason?: string | undefined;
 }
@@ -39,6 +33,7 @@ export interface RoomForPricing {
   id: number;
   propertyId: number;
   basePrice: number;
+  totalUnits: number;
 }
 
 export interface PriceCalculationResult {
@@ -47,31 +42,5 @@ export interface PriceCalculationResult {
   reason: string | null;
 }
 
-// --- PEAK SEASON DTO ---
-
-export interface CreatePeakSeasonDto {
-  name: string;
-  startDate: string;
-  endDate: string;
-  changeType: $Enums.PriceChangeType;
-  changeValue: number;
-  applyToAllProperties: boolean;
-  propertyIds?: number[];
-}
-
-export interface PeakSeasonRepoCreateDto {
-  tenantId: number;
-  name: string;
-  startDate: Date;
-  endDate: Date;
-  changeType: $Enums.PriceChangeType;
-  changeValue: number;
-  applyToAllProperties: boolean;
-  propertyIds: number[];
-}
-
-export interface UpdatePeakSeasonDto extends Partial<CreatePeakSeasonDto> {}
-
 export type RoomAvailabilityDto = RoomAvailability;
-export type PeakSeasonDto = PeakSeason;
 export type CalculatedPriceDto = CalculatedPrice;

@@ -1,14 +1,15 @@
-import "module-alias/register";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 import dotenv from "dotenv";
 import express, { Application } from "express";
+import "module-alias/register";
 import { AuthRouter } from "./modules/Account/auth/routers/auth-router";
 import { OAuthRouter } from "./modules/Account/oAuth/routers/oAuth-router";
 import { UserRouter } from "./modules/Account/user/routers/user-router";
 import { BookingRoutes } from "./modules/booking/routers/booking.routes";
 import { CronService } from "./modules/cron/services/cron.service";
-import { PricingRouter } from "./modules/Inventory/pricing/router/pricing-router";
+import { AvailabilityRouter } from "./modules/Inventory/availability/router/availability-router";
+import { PeakSeasonRouter } from "./modules/Inventory/peakseason/router/peak-season-router";
 import { PropertyRouter } from "./modules/Inventory/property/router/property-router";
 import { RoomRouter } from "./modules/Inventory/room/router/room-router";
 import { PaymentRoutes } from "./modules/payment/routers/payment.routes";
@@ -16,8 +17,8 @@ import { ReportRoutes } from "./modules/report/routers/report.routes";
 import { ReviewRoutes } from "./modules/review/routers/review.routes";
 import { TenantBookingRoutes } from "./modules/tenant/tenant-booking-status/routers/tenant-booking-status.routes";
 import { prisma } from "./shared/utils/prisma";
-import { redisClient } from "./shared/utils/redis/redis";
 import { cacheManager } from "./shared/utils/redis/cache-manager";
+import { redisClient } from "./shared/utils/redis/redis";
 
 if (process.env.NODE_ENV === "production") {
   dotenv.config({ path: ".env.production" });
@@ -34,22 +35,25 @@ export class App {
 
   constructor(port?: number) {
     this.app = express();
-    this.port = port ||Number(process.env.PORT || 8000);
+    this.port = port || Number(process.env.PORT || 8000);
 
     // CORS setup
     const corsOptions = {
-      origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+      origin: (
+        origin: string | undefined,
+        callback: (err: Error | null, allow?: boolean) => void
+      ) => {
         const allowedOrigins = [
-          process.env.NODE_ENV === "production" 
-            ? "https://final-project-fe-ebon.vercel.app" 
+          process.env.NODE_ENV === "production"
+            ? "https://final-project-fe-ebon.vercel.app"
             : "http://localhost:3000",
         ];
-        
+
         // Allow requests with no origin (like Midtrans webhook)
         if (!origin || allowedOrigins.includes(origin)) {
           callback(null, true);
         } else {
-          callback(new Error('Not allowed by CORS'));
+          callback(new Error("Not allowed by CORS"));
         }
       },
       methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
@@ -121,8 +125,9 @@ export class App {
     // Room routes
     this.app.use("/api", new RoomRouter().getRouter());
 
-    // Pricing routes
-    this.app.use("/api", new PricingRouter().getRouter());
+    // Availability & PeakSeason routes
+    this.app.use("/api", new AvailabilityRouter().getRouter());
+    this.app.use("/api", new PeakSeasonRouter().getRouter());
   }
 
   private setupGracefulShutdown() {

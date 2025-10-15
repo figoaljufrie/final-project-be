@@ -2,23 +2,20 @@ import { Router } from "express";
 import { $Enums } from "../../../../generated/prisma";
 import { AuthMiddleware } from "../../../../shared/middleware/auth-middleware";
 import { JWTMiddleware } from "../../../../shared/middleware/jwt-middleware";
-import { OwnershipMiddleware } from "../../../../shared/middleware/ownership-middleware";
 import { RBACMiddleware } from "../../../../shared/middleware/rbac-middleware";
 import { validate } from "../../../../shared/middleware/validate-middleware";
-import { PricingController } from "../controllers/pricing-controller";
-import { setAvailabilityValidator } from "../validators/availability-validators";
+import { PeakSeasonController } from "../controllers/peak-season-controller";
 import {
   createPeakSeasonValidator,
   updatePeakSeasonValidator,
 } from "../validators/peak-season-validators";
 
-export class PricingRouter {
+export class PeakSeasonRouter {
   private router = Router();
-  private controller = new PricingController();
+  private controller = new PeakSeasonController();
   private authMiddleware = new AuthMiddleware();
   private jwtMiddleware = new JWTMiddleware();
   private rbacMiddleware = new RBACMiddleware();
-  private ownershipMiddleware = new OwnershipMiddleware();
 
   constructor() {
     this.initializeRoutes();
@@ -30,24 +27,6 @@ export class PricingRouter {
       this.authMiddleware.authenticate,
       this.rbacMiddleware.checkRole([$Enums.UserRole.tenant]),
     ];
-
-    this.router.post(
-      "/properties/:propertyId/rooms/:roomId/availability",
-      ...tenantAccess,
-      this.ownershipMiddleware.checkRoomOwnership,
-      validate(setAvailabilityValidator),
-      this.controller.setAvailability
-    );
-
-    this.router.get(
-      "/properties/:propertyId/rooms/:roomId/availability",
-      this.controller.getAvailabilityRange
-    );
-
-    this.router.get(
-      "/properties/:propertyId/rooms/:roomId/availability/day",
-      this.controller.getAvailabilityByDate
-    );
 
     this.router.post(
       "/tenant/peakseasons",
