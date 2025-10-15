@@ -1,7 +1,11 @@
+import { OpenCageGeoDTO } from "@/shared/utils/opencage/opencage-dto";
 import { OpenCageGeoService } from "../../../../../shared/utils/opencage/opencage-service";
 import { AvailabilityService } from "../../../pricing/services/availability-service";
 import { PeakSeasonService } from "../../../pricing/services/peak-season-service";
-import { PropertySearchQueryDto, SearchResultDto } from "../../dto/property-dto";
+import {
+  PropertySearchQueryDto,
+  SearchResultDto,
+} from "../../dto/property-dto";
 import { PropertyRepository } from "../../repository/property-repository";
 import { PropertySearcher } from "../../searcher/property-searcher";
 
@@ -57,5 +61,14 @@ export class PropertySearchService {
       .slice(0, limit);
 
     return propertiesWithDistance;
+  }
+  public async geocodeAddress(address: string): Promise<OpenCageGeoDTO | null> {
+    return this.geocodingService.geocodeAddress(address);
+  }
+  public async reverseGeocode(
+    latitude: number,
+    longitude: number
+  ): Promise<OpenCageGeoDTO | null> {
+    return this.geocodingService.reverseGeolocation(latitude, longitude);
   }
 }

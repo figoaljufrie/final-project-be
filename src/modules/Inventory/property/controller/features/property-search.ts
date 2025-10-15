@@ -85,4 +85,58 @@ export class PropertySearchController {
       );
     }
   };
+  public geocodeAddress = async (req: Request, res: Response) => {
+    try {
+      const address = safeString(req.query.address);
+
+      if (!address) {
+        return errHandle(res, "Address is required", 400);
+      }
+
+      const result = await this.propertyService.geocodeAddress(address);
+
+      if (!result) {
+        return errHandle(res, "Could not geocode address", 404);
+      }
+
+      succHandle(res, "Address geocoded successfully", result, 200);
+    } catch (error) {
+      errHandle(
+        res,
+        "Failed to geocode address",
+        400,
+        (error as Error).message
+      );
+    }
+  };
+
+  // NEW: Reverse geocode coordinates to get address
+  public reverseGeocode = async (req: Request, res: Response) => {
+    try {
+      const latitude = safeNumber(req.query.latitude);
+      const longitude = safeNumber(req.query.longitude);
+
+      if (!latitude || !longitude) {
+        return errHandle(res, "Latitude and longitude are required", 400);
+      }
+
+      const result = await this.propertyService.reverseGeocode(
+        latitude,
+        longitude
+      );
+
+      if (!result) {
+        return errHandle(res, "Could not reverse geocode coordinates", 404);
+      }
+
+      succHandle(res, "Coordinates reverse geocoded successfully", result, 200);
+    } catch (error) {
+      errHandle(
+        res,
+        "Failed to reverse geocode",
+        400,
+        (error as Error).message
+      );
+    }
+  };
 }

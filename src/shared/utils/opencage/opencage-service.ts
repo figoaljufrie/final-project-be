@@ -128,10 +128,10 @@ export class OpenCageGeoService {
         Math.sin(dLon / 2) ** 2;
 
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-    return R * c; // ✅ fixed (was just returning R)
+    return R * c;
   }
 
   private toRadians(degrees: number): number {
-    return degrees * (Math.PI / 180); // ✅ fixed (was /100)
+    return degrees * (Math.PI / 180); 
   }
 }
