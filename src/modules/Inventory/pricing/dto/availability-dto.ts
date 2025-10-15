@@ -13,23 +13,26 @@ export interface SetAvailabilityBodyDto {
   customPrice?: number;
   priceModifier?: number;
   reason?: string;
+  bookedUnits: number
 }
 
-export interface SetAvailabilityRepoData {
+export interface SetAvailabilityRepoDto {
   roomId: number;
   date: Date;
   isAvailable?: boolean | undefined;
   customPrice?: number | undefined;
+  bookedUnits?: number | undefined
   priceModifier?: number | undefined;
   reason?: string | undefined;
 }
 
-export interface AvailabilitySeedData {
+export interface AvailabilitySeedDto {
   roomId: number;
   date: Date;
   isAvailable: boolean;
   bookedUnits: number;
   customPrice: number | null;
+  totalUnits: number;
 }
 
 export interface RoomForPricing {
