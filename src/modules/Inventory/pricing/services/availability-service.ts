@@ -9,7 +9,7 @@ import {
   PeakSeasonDto,
   RoomAvailabilityDto,
   SetAvailabilityBodyDto,
-  SetAvailabilityRepoData,
+  SetAvailabilityRepoDto,
 } from "../dto/availability-dto";
 import { AvailabilityRepository } from "../repository/availability-repository";
 
@@ -24,7 +24,7 @@ export class AvailabilityService {
     const date = new Date(payload.date);
     date.setHours(0, 0, 0, 0);
 
-    const repoData: SetAvailabilityRepoData = {
+    const repoData: SetAvailabilityRepoDto = {
       roomId: roomId,
       date: date,
       isAvailable: payload.isAvailable,

@@ -1,12 +1,12 @@
 import { Prisma, RoomAvailability } from "../../../../generated/prisma";
 import { prisma } from "../../../../shared/utils/prisma";
 import {
-  AvailabilitySeedData,
-  SetAvailabilityRepoData,
+  AvailabilitySeedDto,
+  SetAvailabilityRepoDto,
 } from "../dto/availability-dto";
 
 export class AvailabilityRepository {
-  private getUpsertData(data: SetAvailabilityRepoData) {
+  private getUpsertData(data: SetAvailabilityRepoDto, totalUnits?: number) {
     return {
       update: {
         ...(typeof data.isAvailable === "boolean" && {
@@ -21,6 +21,10 @@ export class AvailabilityRepository {
         ...(typeof data.reason === "string" && {
           reason: data.reason,
         }),
+        ...(typeof data.bookedUnits === "number" && {
+          bookedUnits: data.bookedUnits,
+        }),
+        ...(totalUnits && { totalUnits }),
       },
       create: {
         roomId: data.roomId,
@@ -29,26 +33,30 @@ export class AvailabilityRepository {
         customPrice: data.customPrice ?? null,
         priceModifier: data.priceModifier ?? null,
         reason: data.reason ?? null,
+        bookedUnits: data.bookedUnits ?? 0,
+        totalUnits: totalUnits ?? 1,
       },
     };
   }
 
   public async upsert(
-    data: SetAvailabilityRepoData
+    data: SetAvailabilityRepoDto,
+    totalUnits?: number
   ): Promise<RoomAvailability> {
     return prisma.roomAvailability.upsert({
       where: { roomId_date: { roomId: data.roomId, date: data.date } } as any,
-      ...this.getUpsertData(data),
+      ...this.getUpsertData(data, totalUnits),
     });
   }
 
   public async upsertWithTx(
     tx: Prisma.TransactionClient,
-    data: SetAvailabilityRepoData
+    data: SetAvailabilityRepoDto,
+    totalUnits?: number
   ): Promise<RoomAvailability> {
     return tx.roomAvailability.upsert({
       where: { roomId_date: { roomId: data.roomId, date: data.date } } as any,
-      ...this.getUpsertData(data),
+      ...this.getUpsertData(data, totalUnits),
     });
   }
 
@@ -88,12 +96,13 @@ export class AvailabilityRepository {
     });
   }
 
+  // Seed method now stores totalUnits
   public async seedAvailabilityWithTx(
     roomId: number,
     totalUnits: number,
     tx: Prisma.TransactionClient
   ) {
-    const records: AvailabilitySeedData[] = [];
+    const records: AvailabilitySeedDto[] = [];
     const dateCursor = new Date();
     dateCursor.setHours(0, 0, 0, 0);
 
@@ -103,6 +112,7 @@ export class AvailabilityRepository {
         date: new Date(dateCursor),
         isAvailable: true,
         bookedUnits: 0,
+        totalUnits,
         customPrice: null,
       });
       dateCursor.setDate(dateCursor.getDate() + 1);
