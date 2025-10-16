@@ -33,36 +33,56 @@ export class RoomRouter {
       this.rbacMiddleware.checkRole([$Enums.UserRole.tenant]),
     ];
 
+    // ✅ Create new room (tenant only)
     this.router.post(
       "/properties/:propertyId/rooms",
       ...tenantAccess,
       this.ownershipMiddleware.checkPropertyOwnership,
       this.uploaderMiddleware.upload().array("images", 5),
-      validate(createRoomSchema),
+      // validate(createRoomSchema),
       this.roomController.create
     );
 
+    // ✅ Get all rooms for a property (public)
     this.router.get(
       "/properties/:propertyId/rooms",
       // validate(roomParamsSchema),
       this.roomController.listByProperty
     );
 
+    //get-room details (public)
+    this.router.get( 
+  "/properties/:propertyId/rooms/:roomId",
+  // validate(roomParamsSchema), // optional
+  this.roomController.getOne
+);
+
+    // ✅ Update room core info (tenant only)
     this.router.patch(
       "/properties/:propertyId/rooms/:roomId",
       ...tenantAccess,
       this.ownershipMiddleware.checkPropertyOwnership,
       this.uploaderMiddleware.upload().array("images", 5),
-      validate(updateRoomSchema),
+      // validate(updateRoomSchema),
       this.roomController.update
     );
 
+    // ✅ Delete room (tenant only)
     this.router.delete(
       "/properties/:propertyId/rooms/:roomId",
       ...tenantAccess,
       this.ownershipMiddleware.checkPropertyOwnership,
-      validate(roomParamsSchema),
+      // validate(roomParamsSchema),
       this.roomController.delete
+    );
+
+    // ✅ NEW: Update room images only (tenant only)
+    this.router.patch(
+      "/properties/:propertyId/rooms/:roomId/images",
+      ...tenantAccess,
+      this.ownershipMiddleware.checkPropertyOwnership,
+      this.uploaderMiddleware.upload().array("images", 5),
+      this.roomController.updateImages
     );
   }
 

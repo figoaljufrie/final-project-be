@@ -19,8 +19,9 @@ export class ImageService {
   ) {
     if (!files || files.length === 0) return;
 
+    const uploaded = await this.uploadToCloudinary(entity, files);
+
     return prisma.$transaction(async (tx) => {
-      const uploaded = await this.uploadToCloudinary(entity, files);
       await this.createManyWithTx(entity, entityId, uploaded, tx);
     });
   }
@@ -32,23 +33,31 @@ export class ImageService {
   ) {
     if (!files || files.length === 0) return;
 
+    const uploaded = await this.uploadToCloudinary(entity, files);
+
     return prisma.$transaction(async (tx) => {
       if (entity === "room") {
         const existing = await tx.roomImage.findMany({
           where: { roomId: entityId },
         });
 
-        for (const img of existing) {
-          if (img.publicId) await this.cloudinaryUtils.destroy(img.publicId);
-        }
-
         await tx.roomImage.deleteMany({ where: { roomId: entityId } });
+
+        await this.createManyWithTx(entity, entityId, uploaded, tx);
+
+        Promise.all(
+          existing.map((img) =>
+            img.publicId
+              ? this.cloudinaryUtils.destroy(img.publicId)
+              : Promise.resolve()
+          )
+        ).catch((err) => {
+          console.error("❌ Failed to cleanup old Cloudinary images:", err);
+        });
       } else {
         await tx.propertyImage.deleteMany({ where: { propertyId: entityId } });
+        await this.createManyWithTx(entity, entityId, uploaded, tx);
       }
-
-      const uploaded = await this.uploadToCloudinary(entity, files);
-      await this.createManyWithTx(entity, entityId, uploaded, tx);
     });
   }
 
@@ -57,10 +66,18 @@ export class ImageService {
       const images = await prisma.roomImage.findMany({
         where: { roomId: entityId },
       });
-      for (const img of images) {
-        if (img.publicId) await this.cloudinaryUtils.destroy(img.publicId);
-      }
+
       await prisma.roomImage.deleteMany({ where: { roomId: entityId } });
+
+      Promise.all(
+        images.map((img) =>
+          img.publicId
+            ? this.cloudinaryUtils.destroy(img.publicId)
+            : Promise.resolve()
+        )
+      ).catch((err) => {
+        console.error("❌ Failed to cleanup Cloudinary images:", err);
+      });
     } else {
       await prisma.propertyImage.deleteMany({
         where: { propertyId: entityId },
@@ -72,7 +89,6 @@ export class ImageService {
     entity: EntityType,
     files: ImageFileInput[]
   ): Promise<UploadedImageResult[]> {
-    // ✅ Upload BOTH room and property images to Cloudinary
     const uploads = files.map(async (img) => {
       const result = await this.cloudinaryUtils.upload(img.file);
 
@@ -86,10 +102,8 @@ export class ImageService {
         };
       }
 
-      // Property images - also upload to Cloudinary
       return {
         url: result.secure_url,
-        // publicId not in PropertyImage schema, so omit it
         altText: img.altText ?? "",
         isPrimary: img.isPrimary,
         order: img.order,
@@ -108,15 +122,14 @@ export class ImageService {
     if (entity === "room") {
       return this.roomImageRepository.createManyForRoomWithTx(
         entityId,
-        images.filter((img) => img.publicId) as any, // Only rooms have publicId
+        images.filter((img) => img.publicId) as any,
         tx
       );
     }
 
-    // Property images don't need publicId
     return this.propertyImageRepository.createManyForPropertyWithTx(
       entityId,
-      images.map(({ publicId, ...rest }) => rest), // Remove publicId
+      images.map(({ publicId, ...rest }) => rest),
       tx
     );
   }

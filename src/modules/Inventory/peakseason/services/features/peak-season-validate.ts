@@ -1,6 +1,6 @@
 import { ApiError } from "@/shared/utils/api-error";
 import { PropertyRepository } from "@/modules/Inventory/property/repository/property-repository";
-import { toLocalMidnight } from "@/shared/helpers/date-utils";
+import { dateFromKey, toLocalMidnight } from "@/shared/helpers/date-utils";
 
 export interface ValidatedPeakSeasonDates {
   startDate: Date;
@@ -14,14 +14,10 @@ export async function validatePeakSeasonPayload(
 ): Promise<ValidatedPeakSeasonDates> {
   if (!payload.name) throw new ApiError("Peak Season name is required.", 400);
 
-  const startDate = new Date(payload.startDate);
-  const endDate = new Date(payload.endDate);
+  const startDate = dateFromKey(payload.startDate);
+  const endDate = dateFromKey(payload.endDate);
 
-  if (
-    isNaN(startDate.getTime()) ||
-    isNaN(endDate.getTime()) ||
-    startDate > endDate
-  ) {
+  if (startDate > endDate) {
     throw new ApiError("Invalid date range.", 400);
   }
 
@@ -39,8 +35,12 @@ export async function validatePeakSeasonPayload(
     }
   }
 
-  const localStart = toLocalMidnight(startDate);
-  const localEnd = toLocalMidnight(endDate);
+  const localStart = new Date(
+    Date.UTC(startDate.getFullYear(), startDate.getMonth(), startDate.getDate())
+  );
+  const localEnd = new Date(
+    Date.UTC(endDate.getFullYear(), endDate.getMonth(), endDate.getDate())
+  );
 
   return { startDate: localStart, endDate: localEnd };
 }

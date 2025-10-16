@@ -11,10 +11,9 @@ export function dateFromKey(dateKey: string): Date {
 }
 
 export function toLocalMidnight(date: Date): Date {
-  const adjusted = new Date(date);
-  adjusted.setHours(0, 0, 0, 0);
-  return adjusted;
+  return new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
 }
+
 
 export function normalizeRange(start: Date, end: Date) {
   return {

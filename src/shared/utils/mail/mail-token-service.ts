@@ -18,7 +18,7 @@ export class MailTokenService {
       expiresAt,
     });
 
-    const verifyLink = `${process.env.APP_URL}/email-verification/register?token=${token}`;
+    const verifyLink = `${process.env.FRONTEND_URL}/email-verification/register?token=${token}`;
     await this.mailUtils.sendMail(
       email,
       "Verify your email",
@@ -40,7 +40,7 @@ export class MailTokenService {
       expiresAt,
     });
 
-    const verifyLink = `${process.env.APP_URL}/email-verification/update?token=${token}`;
+    const verifyLink = `${process.env.FRONTEND_URL}/email-verification/update?token=${token}`;
     await this.mailUtils.sendMail(
       email,
       "Verify your new email",
@@ -63,7 +63,7 @@ export class MailTokenService {
       expiresAt,
     });
 
-    const resetLink = `${process.env.APP_URL}/auth/reset-password?token=${token}`;
+    const resetLink = `${process.env.FRONTEND_URL}/auth/reset-password?token=${token}`;
     await this.mailUtils.sendMail(
       email,
       "Reset your password",

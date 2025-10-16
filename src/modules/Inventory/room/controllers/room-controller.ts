@@ -89,6 +89,63 @@ export class RoomController {
     }
   };
 
+  public updateImages = async (req: Request, res: Response) => {
+    try {
+      const roomId = Number(req.params.roomId);
+      const files = (req.files as Express.Multer.File[] | undefined) || [];
+
+      if (!roomId) throw new Error("Invalid room ID");
+      if (files.length === 0) throw new Error("No image files provided");
+
+      let metadataRaw: any[] = [];
+
+      try {
+        if (req.body.imageMeta) {
+          metadataRaw = JSON.parse(req.body.imageMeta);
+        }
+      } catch (err) {
+        console.error("❌ Failed to parse imageMeta:", req.body.imageMeta);
+        throw new Error("Invalid imageMeta format");
+      }
+
+      const mergedFiles = files.map((file, i) => ({
+        file,
+        ...metadataRaw[i],
+        isPrimary: metadataRaw[i]?.isPrimary ?? i === 0,
+        order: metadataRaw[i]?.order ?? i,
+        altText: metadataRaw[i]?.altText ?? "",
+      }));
+
+      const result = await this.roomService.updateRoomImages(
+        roomId,
+        mergedFiles
+      );
+
+      return succHandle(res, "Room images updated successfully", result, 200);
+    } catch (error) {
+      console.error("❌ updateImages error:", error);
+      return errHandle(
+        res,
+        "Failed to update room images",
+        400,
+        (error as Error).message
+      );
+    }
+  };
+
+  public getOne = async (req: Request, res: Response) => {
+  try {
+    const roomId = Number(req.params.roomId);
+    if (!roomId) throw new Error("Invalid room ID");
+
+    const result = await this.roomService.getRoomById(roomId);
+    succHandle(res, "Room fetched successfully", result, 200);
+  } catch (error) {
+    errHandle(res, "Failed to fetch room", 400, (error as Error).message);
+  }
+};
+
+
   public delete = async (req: Request, res: Response) => {
     try {
       const tenantId = (req as any).user.id;

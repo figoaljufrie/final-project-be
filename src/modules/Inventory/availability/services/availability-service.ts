@@ -22,11 +22,21 @@ export class AvailabilityService {
     roomId: number,
     payload: SetAvailabilityBodyDto
   ) {
-    const date = toLocalMidnight(new Date(payload.date));
+    // Manually normalize to prevent timezone shift
+    const inputDate = new Date(payload.date);
+
+    // Construct a UTC date based on the *local calendar day* the user picked
+    const localDate = new Date(
+      Date.UTC(
+        inputDate.getFullYear(),
+        inputDate.getMonth(),
+        inputDate.getDate()
+      )
+    );
 
     const repoData: SetAvailabilityRepoDto = {
-      roomId: roomId,
-      date: date,
+      roomId,
+      date: localDate, // ✅ now safely UTC midnight for the intended local day
       isAvailable: payload.isAvailable,
       customPrice: payload.customPrice,
       priceModifier: payload.priceModifier,
