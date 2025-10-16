@@ -31,7 +31,7 @@ export class PeakSeasonRouter {
     this.router.post(
       "/tenant/peakseasons",
       ...tenantAccess,
-      validate(createPeakSeasonValidator),
+      // validate(createPeakSeasonValidator),
       this.controller.createPeakSeason
     );
 
@@ -44,7 +44,7 @@ export class PeakSeasonRouter {
     this.router.patch(
       "/tenant/peakseasons/:id",
       ...tenantAccess,
-      validate(updatePeakSeasonValidator),
+      // validate(updatePeakSeasonValidator),
       this.controller.updatePeakSeason
     );
 

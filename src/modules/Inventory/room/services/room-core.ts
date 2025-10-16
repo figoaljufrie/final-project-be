@@ -134,4 +134,26 @@ export class RoomCoreService {
       900 // 15 minutes TTL
     );
   }
+
+  public async getRoomById(roomId: number) {
+  const room = await this.roomRepository.findById(roomId);
+  if (!room) throw new ApiError("Room not found", 404);
+  return room;
+}
+
+  public async updateRoomImages(roomId: number, files: ImageFileInput[]) {
+    const room = await this.roomRepository.findById(roomId);
+    if (!room) throw new ApiError("Room not found", 404);
+
+    await this.imageService.handleUpdateImages("room", roomId, files);
+
+    if (room.propertyId) {
+      await this.roomCacheService.invalidateRoomCaches(room.propertyId);
+    }
+
+    const updated = await this.roomRepository.findById(roomId);
+    if (!updated) throw new ApiError("Failed to fetch updated room", 500);
+
+    return updated;
+  }
 }

@@ -94,11 +94,6 @@ export class PeakSeasonRepository {
     });
   }
 
-  /**
-   * Checks if any existing peak seasons overlap with the given date range.
-   * Instead of blocking, this now returns a list of overlapping seasons
-   * so that the system can *stack* or *combine* them gracefully.
-   */
   public async hasOverlapped(
     tenantId: number,
     startDate: Date,
@@ -119,7 +114,6 @@ export class PeakSeasonRepository {
 
     const overlappingSeasons = await prisma.peakSeason.findMany({ where });
 
-    // Filter down to relevant overlaps (same property or global)
     const relevantOverlaps = overlappingSeasons.filter((season) => {
       if (applyToAllProperties || season.applyToAllProperties) return true;
 
