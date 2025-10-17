@@ -1,9 +1,9 @@
 import { prisma } from "../../../../shared/utils/prisma";
 import { Prisma } from "../../../../generated/prisma";
 
-interface RoomImageCreationData {
+export interface RoomImageCreationData {
   url: string;
-  publicId: string; // Essential for Cloudinary cleanup
+  publicId: string; // not nullable
   altText?: string;
   isPrimary: boolean;
   order: number;
@@ -16,9 +16,9 @@ export class RoomImageRepository {
     tx: Prisma.TransactionClient
   ) {
     const data = images.map((img) => ({
-      roomId: roomId,
+      roomId,
       url: img.url,
-      publicId: img.publicId,
+      publicId: img.publicId, // must always be string
       altText: img.altText ?? "",
       isPrimary: img.isPrimary,
       order: img.order,
@@ -31,11 +31,13 @@ export class RoomImageRepository {
     imageId: number,
     data: Partial<RoomImageCreationData>
   ) {
+    // publicId must always be string
+    const updateData = { ...data } as { [key: string]: any };
+    if (updateData.publicId === undefined) delete updateData.publicId;
+
     return prisma.roomImage.update({
       where: { id: imageId },
-      data: {
-        ...data,
-      },
+      data: updateData,
     });
   }
 

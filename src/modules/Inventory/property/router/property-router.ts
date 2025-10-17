@@ -87,7 +87,6 @@ export class PropertyRouter {
     this.router.post(
       "/tenant/properties",
       ...tenantAccess,
-      this.uploaderMiddleware.upload().array("images", 5),
       validate(createPropertySchema),
       this.propertyCoreController.create
     );
@@ -96,7 +95,6 @@ export class PropertyRouter {
       "/tenant/properties/:propertyId",
       ...tenantAccess,
       this.ownershipMiddleware.checkPropertyOwnership,
-      this.uploaderMiddleware.upload().array("images", 5),
       validate(updatePropertySchema),
       this.propertyCoreController.update
     );

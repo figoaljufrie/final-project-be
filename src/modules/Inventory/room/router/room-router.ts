@@ -51,11 +51,11 @@ export class RoomRouter {
     );
 
     //get-room details (public)
-    this.router.get( 
-  "/properties/:propertyId/rooms/:roomId",
-  // validate(roomParamsSchema), // optional
-  this.roomController.getOne
-);
+    this.router.get(
+      "/properties/:propertyId/rooms/:roomId",
+      // validate(roomParamsSchema), // optional
+      this.roomController.getOne
+    );
 
     // ✅ Update room core info (tenant only)
     this.router.patch(
@@ -74,15 +74,6 @@ export class RoomRouter {
       this.ownershipMiddleware.checkPropertyOwnership,
       // validate(roomParamsSchema),
       this.roomController.delete
-    );
-
-    // ✅ NEW: Update room images only (tenant only)
-    this.router.patch(
-      "/properties/:propertyId/rooms/:roomId/images",
-      ...tenantAccess,
-      this.ownershipMiddleware.checkPropertyOwnership,
-      this.uploaderMiddleware.upload().array("images", 5),
-      this.roomController.updateImages
     );
   }
 

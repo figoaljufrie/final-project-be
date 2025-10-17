@@ -16,12 +16,17 @@ export const createPropertySchema = z.object({
 });
 
 export const updatePropertySchema = z.object({
-  name: optionalString.refine(
-    (val) => !val || val.length <= 100,
-    "Name cannot exceed 100 characters"
-  ),
+  name: z
+    .string()
+    .trim()
+    .max(100, "Name cannot exceed 100 characters")
+    .optional(),
   description: optionalString,
   category: PropertyCategoryEnum.optional(),
+  city: optionalString,
+  province: optionalString,
+  address: optionalString,
+  images: z.any().optional(),
 });
 
 export const propertySearchSchema = z.object({

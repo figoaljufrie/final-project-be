@@ -1,8 +1,6 @@
 import { $Enums } from "../../../../../generated/prisma";
 import { ApiError } from "../../../../../shared/utils/api-error";
 import { OpenCageGeoService } from "../../../../../shared/utils/opencage/opencage-service";
-import { ImageFileInput } from "../../../images/dto/image-dto";
-import { ImageService } from "../../../images/services/image-service";
 import {
   CreatePropertyDto,
   PropertyCreateRepoDto,
@@ -14,15 +12,10 @@ import { PropertyCacheService } from "./property-cache";
 
 export class PropertyCoreService {
   private propertyRepository = new PropertyRepository();
-  private imageService = new ImageService();
   private geocodingService = new OpenCageGeoService();
   private cacheService = new PropertyCacheService();
 
-  public async createProperty(
-    tenantId: number,
-    payload: CreatePropertyDto,
-    files?: ImageFileInput[]
-  ) {
+  public async createProperty(tenantId: number, payload: CreatePropertyDto) {
     const slug = payload.name
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
@@ -63,23 +56,15 @@ export class PropertyCoreService {
 
     const property = await this.propertyRepository.create(repoPayload);
 
-    if (files?.length) {
-      await this.imageService.handleCreateImages(
-        "property",
-        property.id,
-        files
-      );
-    }
-
     await this.cacheService.invalidatePropertyCaches(property.id);
+
     return this.propertyRepository.findById(property.id);
   }
 
   public async updateProperty(
     tenantId: number,
     propertyId: number,
-    data: UpdatePropertyDto,
-    files?: ImageFileInput[]
+    data: UpdatePropertyDto
   ) {
     const existing = await this.propertyRepository.findById(propertyId);
     if (!existing) throw new ApiError("Property not found", 404);
@@ -125,10 +110,6 @@ export class PropertyCoreService {
 
     await this.propertyRepository.update(propertyId, updateData);
 
-    if (files?.length) {
-      await this.imageService.handleUpdateImages("property", propertyId, files);
-    }
-
     await this.cacheService.invalidatePropertyCaches(propertyId);
     const updated = await this.propertyRepository.findById(propertyId);
     if (!updated)
@@ -137,7 +118,6 @@ export class PropertyCoreService {
   }
 
   public async softDeleteProperty(propertyId: number) {
-    await this.imageService.handleDeleteImages("property", propertyId);
     const result = await this.propertyRepository.softDelete(propertyId);
     await this.cacheService.invalidatePropertyCaches(propertyId);
     return result;

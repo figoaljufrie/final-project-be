@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { errHandle } from "../../../../shared/helpers/err-handler";
 import { safeNumber } from "../../../../shared/helpers/query-parser";
-import { succHandle } from "../../../../shared/helpers/succ-handler";
+import { succHandle } from "@/shared/helpers/succ-handler";
 import { RoomCoreService } from "../services/room-core";
 
 export class RoomController {
@@ -11,18 +11,6 @@ export class RoomController {
     try {
       const tenantId = (req as any).user.id;
       const propertyId = Number(req.params.propertyId);
-      const files = req.files as Express.Multer.File[];
-
-      const metadataRaw = req.body.imageMeta
-        ? JSON.parse(req.body.imageMeta)
-        : [];
-      const mergedFiles = files.map((file, i) => ({
-        file,
-        ...metadataRaw[i],
-        isPrimary: metadataRaw[i]?.isPrimary ?? i === 0,
-        order: metadataRaw[i]?.order ?? i,
-        altText: metadataRaw[i]?.altText ?? "",
-      }));
 
       const payload = {
         propertyId,
@@ -33,11 +21,7 @@ export class RoomController {
         description: req.body.description,
       };
 
-      const newRoom = await this.roomService.create(
-        tenantId,
-        payload,
-        mergedFiles
-      );
+      const newRoom = await this.roomService.create(tenantId, payload);
       succHandle(res, "Room created successfully", newRoom, 201);
     } catch (error) {
       errHandle(res, "Failed to create room", 500, (error as Error).message);
@@ -49,24 +33,6 @@ export class RoomController {
       const tenantId = (req as any).user.id;
       const propertyId = Number(req.params.propertyId);
       const roomId = Number(req.params.roomId);
-
-      const files = (req.files as Express.Multer.File[] | undefined) || [];
-
-      let mergedFiles: any[] | undefined = undefined;
-
-      if (files.length > 0) {
-        const metadataRaw = req.body.imageMeta
-          ? JSON.parse(req.body.imageMeta)
-          : [];
-
-        mergedFiles = files.map((file, i) => ({
-          file,
-          ...metadataRaw[i],
-          isPrimary: metadataRaw[i]?.isPrimary ?? i === 0,
-          order: metadataRaw[i]?.order ?? i,
-          altText: metadataRaw[i]?.altText ?? "",
-        }));
-      }
 
       const payload = {
         name: req.body.name,
@@ -80,8 +46,7 @@ export class RoomController {
         tenantId,
         propertyId,
         roomId,
-        payload,
-        mergedFiles
+        payload
       );
       succHandle(res, "Room updated successfully", updatedRoom, 200);
     } catch (error) {
@@ -89,62 +54,17 @@ export class RoomController {
     }
   };
 
-  public updateImages = async (req: Request, res: Response) => {
+  public getOne = async (req: Request, res: Response) => {
     try {
       const roomId = Number(req.params.roomId);
-      const files = (req.files as Express.Multer.File[] | undefined) || [];
-
       if (!roomId) throw new Error("Invalid room ID");
-      if (files.length === 0) throw new Error("No image files provided");
 
-      let metadataRaw: any[] = [];
-
-      try {
-        if (req.body.imageMeta) {
-          metadataRaw = JSON.parse(req.body.imageMeta);
-        }
-      } catch (err) {
-        console.error("❌ Failed to parse imageMeta:", req.body.imageMeta);
-        throw new Error("Invalid imageMeta format");
-      }
-
-      const mergedFiles = files.map((file, i) => ({
-        file,
-        ...metadataRaw[i],
-        isPrimary: metadataRaw[i]?.isPrimary ?? i === 0,
-        order: metadataRaw[i]?.order ?? i,
-        altText: metadataRaw[i]?.altText ?? "",
-      }));
-
-      const result = await this.roomService.updateRoomImages(
-        roomId,
-        mergedFiles
-      );
-
-      return succHandle(res, "Room images updated successfully", result, 200);
+      const result = await this.roomService.getRoomById(roomId);
+      succHandle(res, "Room fetched successfully", result, 200);
     } catch (error) {
-      console.error("❌ updateImages error:", error);
-      return errHandle(
-        res,
-        "Failed to update room images",
-        400,
-        (error as Error).message
-      );
+      errHandle(res, "Failed to fetch room", 400, (error as Error).message);
     }
   };
-
-  public getOne = async (req: Request, res: Response) => {
-  try {
-    const roomId = Number(req.params.roomId);
-    if (!roomId) throw new Error("Invalid room ID");
-
-    const result = await this.roomService.getRoomById(roomId);
-    succHandle(res, "Room fetched successfully", result, 200);
-  } catch (error) {
-    errHandle(res, "Failed to fetch room", 400, (error as Error).message);
-  }
-};
-
 
   public delete = async (req: Request, res: Response) => {
     try {

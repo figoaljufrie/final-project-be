@@ -1,9 +1,9 @@
 import { prisma } from "../../../../shared/utils/prisma";
 import { Prisma } from "../../../../generated/prisma";
 
-interface PropertyImageCreationData {
+export interface PropertyImageCreationData {
   url: string;
-  // ❌ removed publicId since not in schema
+  publicId?: string | null;
   altText?: string;
   isPrimary: boolean;
   order: number;
@@ -15,29 +15,50 @@ export class PropertyImageRepository {
     images: PropertyImageCreationData[],
     tx: Prisma.TransactionClient
   ) {
+    if (!propertyId) throw new Error("propertyId is required");
+    if (!images || images.length === 0) return [];
+
+    // ✅ DO NOT DELETE OLD IMAGES (keep existing)
+    // Only insert new ones
     const data = images.map((img) => ({
       propertyId,
       url: img.url,
+      publicId: img.publicId ?? null,
       altText: img.altText ?? "",
       isPrimary: img.isPrimary,
       order: img.order,
     }));
 
-    return tx.propertyImage.createMany({ data });
+    await tx.propertyImage.createMany({ data });
+
+    // ✅ Fetch all images for that property (not only newly created)
+    const allImages = await tx.propertyImage.findMany({
+      where: { propertyId },
+      orderBy: [{ isPrimary: "desc" }, { order: "asc" }, { createdAt: "desc" }],
+    });
+
+    return allImages;
   }
 
   public async updatePropertyImage(
     imageId: number,
     data: Partial<PropertyImageCreationData>
   ) {
+    const existing = await prisma.propertyImage.findUnique({
+      where: { id: imageId },
+    });
+    if (!existing) throw new Error("Property image not found");
+
     return prisma.propertyImage.update({
       where: { id: imageId },
-      data,
+      data: {
+        ...data,
+        publicId: data.publicId ?? existing.publicId ?? null,
+      },
     });
   }
 
   public async deletePropertyImage(imageId: number) {
-    // ✅ No need to reference publicId since it doesn’t exist
     const image = await prisma.propertyImage.findUnique({
       where: { id: imageId },
     });
@@ -48,7 +69,6 @@ export class PropertyImageRepository {
       where: { id: imageId },
     });
 
-    // Return the deleted image (in case service wants URL cleanup)
     return image.url;
   }
 }
