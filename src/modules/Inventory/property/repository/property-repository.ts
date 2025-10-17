@@ -96,7 +96,7 @@ export class PropertyRepository {
             altText: true,
             isPrimary: true,
             order: true,
-            // Note: NO publicId for property images
+            publicId: true
           },
           orderBy: [
             { isPrimary: "desc" }, // Primary images first

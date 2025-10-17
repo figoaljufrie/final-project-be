@@ -19,6 +19,8 @@ import { TenantBookingRoutes } from "./modules/tenant/tenant-booking-status/rout
 import { prisma } from "./shared/utils/prisma";
 import { cacheManager } from "./shared/utils/redis/cache-manager";
 import { redisClient } from "./shared/utils/redis/redis";
+import { RoomImageRouter } from "./modules/Inventory/images/router/room-image-router";
+import { PropertyImageRouter } from "./modules/Inventory/images/router/property-image-router";
 
 if (process.env.NODE_ENV === "production") {
   dotenv.config({ path: ".env.production" });
@@ -121,9 +123,10 @@ export class App {
 
     // Property routes
     this.app.use("/api", new PropertyRouter().getRouter());
-
+    this.app.use("/api", new PropertyImageRouter().getRouter())
     // Room routes
     this.app.use("/api", new RoomRouter().getRouter());
+    this.app.use("/api", new RoomImageRouter().getRouter())
 
     // Availability & PeakSeason routes
     this.app.use("/api", new AvailabilityRouter().getRouter());

@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import { errHandle } from "../../../../../shared/helpers/err-handler";
 import { safeNumber } from "../../../../../shared/helpers/query-parser";
 import { succHandle } from "../../../../../shared/helpers/succ-handler";
-import { CreatePropertyDto } from "../../dto/property-dto";
+import { CreatePropertyDto, UpdatePropertyDto } from "../../dto/property-dto";
 import { PropertyCoreService } from "../../services/core/property-core";
 
 export class PropertyCoreController {
@@ -12,19 +12,10 @@ export class PropertyCoreController {
     try {
       const tenantId = (req as any).user.id;
       const payload: CreatePropertyDto = req.body;
-      const files = (req.files as Express.Multer.File[] | undefined) || [];
-
-      const mergedFiles = files.map((file, i) => ({
-        file,
-        isPrimary: i === 0,
-        order: i,
-        altText: file.originalname,
-      }));
 
       const result = await this.propertyService.createProperty(
         tenantId,
-        payload,
-        mergedFiles
+        payload
       );
 
       succHandle(res, "Property created", result, 201);
@@ -42,20 +33,24 @@ export class PropertyCoreController {
     try {
       const tenantId = (req as any).user.id;
       const propertyId = Number(req.params.propertyId);
-      const files = (req.files as Express.Multer.File[] | undefined) || [];
 
-      const mergedFiles = files.map((file, i) => ({
-        file,
-        isPrimary: i === 0,
-        order: i,
-        altText: file.originalname,
-      }));
+      // Cast body as Partial<UpdatePropertyDto>
+      const payload = req.body as Partial<UpdatePropertyDto>;
+
+      // Filter out undefined values so updating only provided fields
+      const cleanPayload: Partial<UpdatePropertyDto> = {};
+      Object.entries(payload).forEach(([key, value]) => {
+        if (value !== undefined) {
+          (cleanPayload as any)[key] = value;
+        }
+      });
+
+      console.log("REQ.BODY:", cleanPayload);
 
       const result = await this.propertyService.updateProperty(
         tenantId,
         propertyId,
-        req.body,
-        mergedFiles
+        cleanPayload
       );
 
       succHandle(res, "Property updated", result, 200);
