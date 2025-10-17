@@ -47,6 +47,13 @@ export class ReportRoutes {
       ReportValidation.getPropertyReport,
       this.reportController.getPropertyReport
     );
+
+    // Calendar with Bookings (for integration with property calendar)
+    this.router.post(
+      "/calendar/bookings",
+      ...tenantAccess,
+      this.reportController.getCalendarWithBookings
+    );
   }
 
   public getRouter(): Router {
