@@ -26,6 +26,7 @@ export class PropertySearchController {
         checkInDate,
         checkOutDate,
         name,
+        city, // ✅ Add city parameter
         category,
         sortBy,
         sortOrder,
@@ -41,6 +42,7 @@ export class PropertySearchController {
         checkInDate: safeDate(checkInDate),
         checkOutDate: safeDate(checkOutDate),
         name: safeString(name),
+        city: safeString(city), // ✅ Add city to params
         category: categoryValue,
         sortBy: sortByValue,
         sortOrder: sortOrderValue,
@@ -63,6 +65,7 @@ export class PropertySearchController {
       const latitude = safeNumber(req.query.latitude);
       const longitude = safeNumber(req.query.longitude);
       const radius = safeNumber(req.query.radius) || 10;
+      const limit = safeNumber(req.query.limit) || 20;
 
       if (!latitude || !longitude) {
         return errHandle(res, "Latitude and longitude are required", 400);
@@ -72,7 +75,7 @@ export class PropertySearchController {
         latitude,
         longitude,
         radius,
-        20
+        limit
       );
 
       succHandle(res, "Nearby properties retrieved", result, 200);
@@ -85,6 +88,7 @@ export class PropertySearchController {
       );
     }
   };
+
   public geocodeAddress = async (req: Request, res: Response) => {
     try {
       const address = safeString(req.query.address);
@@ -110,7 +114,6 @@ export class PropertySearchController {
     }
   };
 
-  // NEW: Reverse geocode coordinates to get address
   public reverseGeocode = async (req: Request, res: Response) => {
     try {
       const latitude = safeNumber(req.query.latitude);
