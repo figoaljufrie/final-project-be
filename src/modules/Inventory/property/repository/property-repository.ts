@@ -78,11 +78,27 @@ export class PropertyRepository {
       orderBy = { createdAt: params.sortOrder || "desc" };
     }
 
+    // ✅ Fetch all fields including location data
     const properties = await prisma.property.findMany({
       where: params.whereClause,
       skip: params.skip,
       take: params.take,
-      include: {
+      select: {
+        id: true,
+        tenantId: true,
+        name: true,
+        slug: true,
+        description: true,
+        address: true,
+        city: true,
+        province: true,
+        latitude: true,
+        longitude: true,
+        published: true,
+        category: true,
+        createdAt: true,
+        updatedAt: true,
+        deletedAt: true,
         rooms: {
           where: { deletedAt: null },
           select: { id: true, basePrice: true },
@@ -90,23 +106,20 @@ export class PropertyRepository {
           take: 1,
         },
         images: {
-          // ✅ Get all images with proper ordering
           select: {
             url: true,
             altText: true,
             isPrimary: true,
             order: true,
-            publicId: true
+            publicId: true,
           },
-          orderBy: [
-            { isPrimary: "desc" }, // Primary images first
-            { order: "asc" }, // Then by order
-          ],
+          orderBy: [{ isPrimary: "desc" }, { order: "asc" }],
         },
       },
       orderBy,
     });
 
+    // ✅ Map to PropertyListItemDto
     const result: PropertyListItemDto[] = properties.map((prop) => {
       const minBasePrice = prop.rooms[0]?.basePrice ?? null;
       const { rooms, images, ...rest } = prop;
@@ -114,7 +127,7 @@ export class PropertyRepository {
       return {
         ...rest,
         minBasePrice,
-        avgRating: null, // You might want to calculate this
+        avgRating: null, // Calculate this if you have reviews
         rooms: rooms,
         images: images,
       } as PropertyListItemDto;
@@ -127,7 +140,14 @@ export class PropertyRepository {
     return prisma.property.count({ where: whereClause });
   }
 
-  public async findMany(params: { where: any; include?: any; take?: number }) {
+  public async findMany(params: {
+    where: any;
+    include?: any;
+    take?: number;
+    select?: any;
+  }) {
     return prisma.property.findMany(params);
   }
+
+  
 }

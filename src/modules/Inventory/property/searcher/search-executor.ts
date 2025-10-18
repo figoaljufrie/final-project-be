@@ -32,14 +32,30 @@ export class SearchExecutor {
   ): Promise<SearchResultDto> {
     const { skip, limit: take } = paginate(params.page, params.limit);
 
+    // ✅ Build where clause with city support
     const whereClause: any = {
       deletedAt: null,
       published: true,
-      ...(params.name && {
-        name: { contains: params.name, mode: "insensitive" },
-      }),
-      ...(params.category && { category: params.category }),
     };
+
+    // ✅ Search in both name and city if name is provided
+    if (params.name) {
+      whereClause.OR = [
+        { name: { contains: params.name, mode: "insensitive" } },
+        { city: { contains: params.name, mode: "insensitive" } },
+        { address: { contains: params.name, mode: "insensitive" } },
+      ];
+    }
+
+    // ✅ Filter by specific city if provided
+    if (params.city) {
+      whereClause.city = { contains: params.city, mode: "insensitive" };
+    }
+
+    // ✅ Filter by category
+    if (params.category) {
+      whereClause.category = params.category;
+    }
 
     const total = await this.propertyRepository.count(whereClause);
 
@@ -60,6 +76,7 @@ export class SearchExecutor {
       repoParams
     );
 
+    // Apply availability filtering if dates provided
     if (params.checkInDate && params.checkOutDate) {
       properties = await this.filterAndPriceService.filterAndPriceProperties(
         properties,
@@ -68,6 +85,7 @@ export class SearchExecutor {
       );
     }
 
+    // Sort by price if requested
     if (params.sortBy === PropertySortField.PRICE) {
       properties.sort((a, b) => {
         const aPrice = a.minBasePrice ?? 0;
@@ -78,10 +96,15 @@ export class SearchExecutor {
       });
     }
 
+    // ✅ Map results to include all location data
     const results = properties.map((p) => ({
       id: p.id,
       name: p.name,
       city: p.city,
+      province: p.province,
+      address: p.address,
+      latitude: p.latitude,
+      longitude: p.longitude,
       category: p.category,
       minPrice: p.minBasePrice,
       images: p.images || [],
